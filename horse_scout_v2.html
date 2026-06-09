@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<title>Horse Scout v2 — 4路線統合評価</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+  background: #0e0f12;
+  color: #e2ddd4;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+}
+.header { text-align: center; margin-bottom: 2.5rem; }
+.logo { font-size: 11px; letter-spacing: 0.3em; color: #706860; text-transform: uppercase; margin-bottom: 0.4rem; }
+h1 { font-size: 1.9rem; font-weight: 300; letter-spacing: 0.05em; }
+h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
+.subtitle { font-size: 12px; color: #5a5248; margin-top: 0.4rem; letter-spacing: 0.08em; }
+.main { max-width: 860px; margin: 0 auto; }
+
+/* 基準馬タブパネル */
+.ref-panel { background: #161719; border: 1px solid #252320; border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden; }
+.ref-tabs { display: flex; border-bottom: 1px solid #252320; }
+.ref-tab { flex: 1; padding: 10px 4px; text-align: center; font-size: 12px; letter-spacing: 0.05em; color: #6a6258; cursor: pointer; border-right: 1px solid #252320; transition: background 0.15s, color 0.15s; user-select: none; }
+.ref-tab:last-child { border-right: none; }
+.ref-tab.active { color: #e2ddd4; background: #1e1f22; }
+.ref-tab[data-route="芝短マ"].active { color: #c9a84c; }
+.ref-tab[data-route="芝中長"].active { color: #4caa84; }
+.ref-tab[data-route="ダ短マ"].active { color: #7a9cc9; }
+.ref-tab[data-route="ダ中長"].active { color: #c97a4c; }
+.ref-content { display: none; padding: 1rem; }
+.ref-content.active { display: block; }
+.ref-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.ref-card { background: #1c1e22; border-radius: 7px; padding: 8px 10px; border: 1px solid #252320; }
+.ref-card.elite { border-left: 2px solid var(--rc); }
+.ref-card.mid   { border-left: 2px solid #7a9cc9; }
+.ref-card.low   { border-left: 2px solid #4a4840; }
+.ref-badge { font-size: 9px; letter-spacing: 0.08em; padding: 1px 5px; border-radius: 3px; display: inline-block; margin-bottom: 3px; }
+.ref-badge.elite { background: color-mix(in srgb, var(--rc) 15%, transparent); color: var(--rc); }
+.ref-badge.mid   { background: #101828; color: #7a9cc9; }
+.ref-badge.low   { background: #1a1a1a; color: #4a4840; }
+.ref-name { font-size: 12px; font-weight: 500; line-height: 1.3; }
+.ref-wins { font-size: 10px; color: #5a5248; margin-top: 2px; }
+
+/* フォームカード共通 */
+.card { background: #161719; border: 1px solid #252320; border-radius: 12px; padding: 1.75rem; margin-bottom: 1.5rem; }
+.card-label { font-size: 10px; letter-spacing: 0.2em; color: #5a5248; text-transform: uppercase; margin-bottom: 1.25rem; }
+
+/* アップロード */
+.pdf-thumb-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px; max-height: 340px; overflow-y: auto; margin-top: 1rem;
+  padding: 4px;
+}
+.pdf-thumb {
+  position: relative; cursor: pointer; border-radius: 6px; overflow: hidden;
+  border: 2px solid #252320; transition: border-color 0.2s, transform 0.15s;
+  background: #1c1e22;
+}
+.pdf-thumb:hover { border-color: #c9a84c; transform: scale(1.02); }
+.pdf-thumb.selected { border-color: #c9a84c; box-shadow: 0 0 0 2px #c9a84c44; }
+.pdf-thumb canvas { display: block; width: 100%; height: auto; }
+.pdf-thumb-num {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.65); color: #e2ddd4;
+  font-size: 10px; text-align: center; padding: 3px 0; letter-spacing: 0.05em;
+}
+.pdf-loading { text-align: center; padding: 1.5rem; color: #706860; font-size: 13px; }
+.file-mode-tabs { display: flex; gap: 8px; margin-bottom: 1rem; }
+.file-mode-tab {
+  flex: 1; padding: 8px; text-align: center; font-size: 12px; letter-spacing: 0.08em;
+  border-radius: 6px; cursor: pointer; border: 1px solid #252320;
+  color: #6a6258; transition: all 0.15s; font-family: inherit;
+  background: transparent;
+}
+.file-mode-tab.active { border-color: #c9a84c; color: #c9a84c; background: #1a1810; }
+.drop-zone { border: 1.5px dashed #302e28; border-radius: 8px; padding: 2rem 1rem; text-align: center; cursor: pointer; position: relative; transition: border-color 0.2s, background 0.2s; }
+.drop-zone:hover, .drop-zone.drag { border-color: #c9a84c; background: #1a1810; }
+.drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop-icon { font-size: 2rem; opacity: 0.4; margin-bottom: 0.4rem; }
+.drop-text { font-size: 13px; color: #706860; }
+.drop-hint { font-size: 11px; color: #3a3830; margin-top: 3px; }
+.preview-wrap { display: none; text-align: center; }
+.preview-img { max-width: 100%; max-height: 260px; border-radius: 8px; border: 1px solid #252320; }
+.preview-fname { font-size: 11px; color: #5a5248; margin-top: 5px; }
+
+/* 測尺フォーム */
+.measure-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 1.25rem; }
+.measure-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
+.field label { display: block; font-size: 10px; letter-spacing: 0.15em; color: #5a5248; text-transform: uppercase; margin-bottom: 5px; }
+.field input, .field select {
+  width: 100%; background: #1c1e22; border: 1px solid #252320;
+  border-radius: 6px; padding: 8px 10px; color: #e2ddd4;
+  font-size: 13px; font-family: inherit; outline: none;
+}
+.field input:focus, .field select:focus { border-color: #c9a84c; }
+.field select option { background: #1c1e22; }
+.field-hint { font-size: 10px; color: #4a4440; margin-top: 3px; }
+
+.eval-btn {
+  width: 100%; margin-top: 1.25rem; padding: 13px;
+  background: #c9a84c; color: #0e0f12;
+  border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 700; letter-spacing: 0.12em;
+  cursor: pointer; transition: background 0.2s; font-family: inherit;
+}
+.eval-btn:hover { background: #dbb85c; }
+.eval-btn:disabled { background: #302e28; color: #5a5248; cursor: not-allowed; }
+.error-msg { display: none; margin-top: 0.75rem; padding: 0.75rem 1rem; background: #180e0e; border: 1px solid #4a1a1a; border-radius: 6px; font-size: 12px; color: #c97a7a; }
+
+/* Loading */
+.loading { display: none; text-align: center; padding: 3rem; background: #161719; border: 1px solid #252320; border-radius: 12px; margin-bottom: 1.5rem; }
+.loading-anim { font-size: 2.5rem; display: inline-block; animation: run 0.8s linear infinite; }
+@keyframes run { 0%{transform:translateX(-10px)} 50%{transform:translateX(10px)} 100%{transform:translateX(-10px)} }
+.loading-msg { margin-top: 0.75rem; font-size: 12px; color: #706860; letter-spacing: 0.2em; }
+.loading-step { font-size: 11px; color: #4a4440; margin-top: 4px; }
+
+/* 結果 */
+.result-card { display: none; background: #161719; border: 1px solid #252320; border-radius: 12px; padding: 1.75rem; margin-bottom: 1.5rem; }
+.result-top { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1.25rem; border-bottom: 1px solid #252320; margin-bottom: 1.5rem; }
+.result-name { font-size: 1.5rem; font-weight: 300; }
+.result-overall-wrap { text-align: right; }
+.result-overall-num { font-size: 3.2rem; font-weight: 300; color: #c9a84c; line-height: 1; }
+.result-overall-sub { font-size: 10px; color: #5a5248; letter-spacing: 0.12em; margin-top: 2px; }
+
+/* のびしろパネル */
+.nobishiro-panel {
+  background: #1a1c1a;
+  border: 1px solid #2a3020;
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.nb-item {}
+.nb-label { font-size: 10px; color: #5a7050; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px; }
+.nb-value { font-size: 1.5rem; font-weight: 300; color: #4caa84; line-height: 1; }
+.nb-value.warn { color: #c9a84c; }
+.nb-value.danger { color: #c97a4c; }
+.nb-sub { font-size: 10px; color: #5a7050; margin-top: 3px; }
+.nb-badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 12px; margin-top: 4px; }
+.nb-badge.ok     { background: #102218; color: #4caa84; border: 1px solid #1a4028; }
+.nb-badge.warn   { background: #1a1a08; color: #c9a84c; border: 1px solid #3a3010; }
+.nb-badge.danger { background: #1a1008; color: #c97a4c; border: 1px solid #3a2010; }
+
+/* 統計補正バー */
+.stat-panel { background: #1c1e22; border: 1px solid #252320; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+.stat-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.stat-row:last-child { margin-bottom: 0; }
+.stat-name { font-size: 11px; color: #706860; width: 60px; flex-shrink: 0; }
+.stat-bar-bg { flex: 1; height: 4px; background: #252320; border-radius: 2px; position: relative; }
+.stat-bar-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+.stat-val { font-size: 12px; font-weight: 500; width: 70px; text-align: right; flex-shrink: 0; }
+.stat-pct { font-size: 10px; color: #5a5248; width: 50px; text-align: right; flex-shrink: 0; }
+
+/* 血統クロスパネル */
+.cross-panel { background: #1a1c1a; border: 1px solid #2a3020; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+.cross-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+.cross-row:last-child { margin-bottom: 0; }
+.cross-name { font-size: 12px; color: #e2ddd4; width: 160px; flex-shrink: 0; }
+.cross-pct  { font-size: 12px; font-weight: 500; color: #4caa84; width: 55px; text-align: right; flex-shrink: 0; }
+.cross-detail { font-size: 10px; color: #4a7050; flex: 1; }
+.cross-bar-bg { width: 80px; height: 3px; background: #252320; border-radius: 2px; flex-shrink: 0; }
+.cross-bar-fill { height: 100%; border-radius: 2px; background: #4caa84; }
+
+
+.routes-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+.route-card { border-radius: 8px; padding: 1rem; border: 1px solid #252320; background: #1c1e22; }
+.route-name { font-size: 10px; letter-spacing: 0.1em; color: #706860; text-transform: uppercase; margin-bottom: 8px; }
+.route-bar-bg { height: 3px; background: #252320; border-radius: 2px; margin-bottom: 6px; overflow: hidden; }
+.route-bar { height: 100%; border-radius: 2px; transition: width 1.2s cubic-bezier(.4,0,.2,1); }
+.route-score { font-size: 2rem; font-weight: 300; line-height: 1; }
+.route-class { font-size: 9px; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 3px; margin-top: 5px; display: inline-block; }
+
+/* 馬体評価 */
+.body-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1.5rem; }
+.body-item { background: #1c1e22; border-radius: 7px; padding: 10px 12px; border: 1px solid #252320; }
+.body-part { font-size: 10px; color: #5a5248; letter-spacing: 0.08em; margin-bottom: 3px; }
+.body-score { font-size: 1.3rem; font-weight: 300; }
+.body-score span { font-size: 11px; color: #5a5248; }
+.body-comment { font-size: 10px; color: #706860; margin-top: 3px; line-height: 1.4; }
+
+/* 適性タグ */
+.apt-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.apt-tag { padding: 4px 12px; border-radius: 20px; font-size: 11px; letter-spacing: 0.05em; border: 1px solid; }
+
+/* 総評 */
+.comment-box { background: #1c1e22; border-radius: 8px; padding: 1.1rem 1.25rem; border: 1px solid #252320; font-size: 13px; line-height: 1.85; color: #b0a898; }
+
+.reset-btn { background: transparent; border: 1px solid #302e28; color: #706860; padding: 7px 18px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; margin-top: 1rem; transition: border-color 0.2s, color 0.2s; }
+.reset-btn:hover { border-color: #c9a84c; color: #c9a84c; }
+
+.divider { height: 1px; background: #252320; margin: 1.25rem 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Horse Scout</div>
+  <h1>馬体評価 <em>AI</em></h1>
+  <div class="subtitle">4路線統合 × 測尺データ連携 — v2.1</div>
+</div>
+
+<div class="main">
+
+  <!-- 基準馬パネル -->
+  <div class="ref-panel">
+    <div class="ref-tabs">
+      <div class="ref-tab active" data-route="芝短マ">芝 短・マイル</div>
+      <div class="ref-tab" data-route="芝中長">芝 中・長距離</div>
+      <div class="ref-tab" data-route="ダ短マ">ダ 短・マイル</div>
+      <div class="ref-tab" data-route="ダ中長">ダ 中・長距離</div>
+    </div>
+    <div class="ref-content active" data-route="芝短マ" style="--rc:#c9a84c">
+      <div class="ref-grid">
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">ジャンタルマンタル</div><div class="ref-wins">GI 4勝</div></div>
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">グランアレグリア</div><div class="ref-wins">GI 6勝</div></div>
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">ロードカナロア</div><div class="ref-wins">GI 6勝</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">モンファボリ</div><div class="ref-wins">3勝クラス</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">ヴェルスパー</div><div class="ref-wins">3勝クラス</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">ブルスクーロ</div><div class="ref-wins">3勝クラス</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">アーモロート</div><div class="ref-wins">1勝クラス</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">ブエナベントゥーラ</div><div class="ref-wins">1勝クラス</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">ユナカイト</div><div class="ref-wins">2勝クラス</div></div>
+      </div>
+    </div>
+    <div class="ref-content" data-route="芝中長" style="--rc:#4caa84">
+      <div class="ref-grid">
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">イクイノックス</div><div class="ref-wins">GI 6勝</div></div>
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">タスティエーラ</div><div class="ref-wins">GI 2勝</div></div>
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">リバティアイランド</div><div class="ref-wins">GI 4勝</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">フィリオアレグロ</div><div class="ref-wins">3勝クラス</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">エクセレントタイム</div><div class="ref-wins">3勝クラス</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">ジオフロント</div><div class="ref-wins">3勝クラス</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">タンジェリンムーン</div><div class="ref-wins">1勝クラス</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">ユークレース</div><div class="ref-wins">1勝クラス</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">アルビオリクス</div><div class="ref-wins">1勝クラス</div></div>
+      </div>
+    </div>
+    <div class="ref-content" data-route="ダ短マ" style="--rc:#7a9cc9">
+      <div class="ref-grid">
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">ドライスタウト</div><div class="ref-wins">Jpn1含む重賞3勝</div></div>
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">レッドルゼル</div><div class="ref-wins">Jpn1含む重賞3勝</div></div>
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">ギルデッドミラー</div><div class="ref-wins">重賞1勝</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">エレガントムーン</div><div class="ref-wins">3勝クラス</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">ラインオブフェイト</div><div class="ref-wins">3勝クラス</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">バトゥーキ</div><div class="ref-wins">OPC</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">スノークルーズ</div><div class="ref-wins">1勝クラス</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">フウゲツムヘン</div><div class="ref-wins">1勝クラス</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">ストームバンガード</div><div class="ref-wins">2勝クラス</div></div>
+      </div>
+    </div>
+    <div class="ref-content" data-route="ダ中長" style="--rc:#c97a4c">
+      <div class="ref-grid">
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">ヴァーミリアン</div><div class="ref-wins">Jpn1含む重賞11勝</div></div>
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">フォーエバーヤング</div><div class="ref-wins">Jpn1含む重賞10勝</div></div>
+        <div class="ref-card elite"><div class="ref-badge elite">Elite</div><div class="ref-name">クリソベリル</div><div class="ref-wins">Jpn1含む重賞6勝</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">ニーズヘッグ</div><div class="ref-wins">3勝クラス</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">レシプロシティ</div><div class="ref-wins">3勝クラス</div></div>
+        <div class="ref-card mid"><div class="ref-badge mid">Mid</div><div class="ref-name">ユアフラッシュ</div><div class="ref-wins">3勝クラス</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">ニューダイアリーズ</div><div class="ref-wins">1勝クラス</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">エターナルディーバ</div><div class="ref-wins">1勝クラス</div></div>
+        <div class="ref-card low"><div class="ref-badge low">Lower</div><div class="ref-name">モーメントキャッチ</div><div class="ref-wins">未勝利</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 入力カード：写真 + 測尺 -->
+  <div class="card">
+    <div class="card-label">写真 + 測尺データ</div>
+
+    <!-- ファイル種別タブ -->
+    <div class="file-mode-tabs">
+      <button class="file-mode-tab active" id="tabImage" onclick="switchMode('image')">📷 画像（JPG / PNG）</button>
+      <button class="file-mode-tab" id="tabPdf" onclick="switchMode('pdf')">📄 カタログ（PDF）</button>
+    </div>
+
+    <!-- 画像モード -->
+    <div id="modeImage">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept="image/*">
+        <div class="drop-icon">📷</div>
+        <div class="drop-text">右側面立ち姿の写真をアップロード</div>
+        <div class="drop-hint">クリックまたはドラッグ＆ドロップ（JPG / PNG）</div>
+      </div>
+      <div class="preview-wrap" id="previewWrap">
+        <img class="preview-img" id="previewImg" src="" alt="">
+        <div class="preview-fname" id="previewFname"></div>
+      </div>
+    </div>
+
+    <!-- PDFモード -->
+    <div id="modePdf" style="display:none;">
+      <div class="drop-zone" id="dropZonePdf">
+        <input type="file" id="fileInputPdf" accept="application/pdf">
+        <div class="drop-icon">📄</div>
+        <div class="drop-text">カタログPDFをアップロード</div>
+        <div class="drop-hint">クリックまたはドラッグ＆ドロップ</div>
+      </div>
+      <div id="pdfPageArea" style="display:none;">
+        <div style="font-size:11px;letter-spacing:.15em;color:#5a5248;text-transform:uppercase;margin-top:1rem;margin-bottom:0.5rem;">
+          評価したい馬のページを選択
+        </div>
+        <div class="pdf-thumb-grid" id="pdfThumbGrid"></div>
+        <div style="font-size:11px;color:#706860;margin-top:0.5rem;" id="pdfSelectedInfo">ページ未選択</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 測尺 row1：馬名・性別・生年月日・測尺日 -->
+    <div class="measure-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr;">
+      <div class="field">
+        <label>馬名（任意）</label>
+        <input type="text" id="horseName" placeholder="例：テストホース">
+      </div>
+      <div class="field">
+        <label>性別</label>
+        <select id="horseSex">
+          <option value="">選択</option>
+          <option value="牡">牡</option>
+          <option value="牝">牝</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>生年月日</label>
+        <input type="text" id="horseBirth" placeholder="例：2025/4/15">
+        <div class="field-hint">年/月/日で入力</div>
+      </div>
+      <div class="field">
+        <label>測尺公開日</label>
+        <input type="text" id="measureDate" placeholder="例：2026/7/20">
+        <div class="field-hint">年/月/日で入力</div>
+      </div>
+    </div>
+
+    <!-- 測尺 row2：体重・体高・胸囲・管囲 -->
+    <div class="measure-grid" style="margin-top: 10px;">
+      <div class="field">
+        <label>測尺時体重 kg</label>
+        <input type="number" id="horseWeight" placeholder="例：380">
+      </div>
+      <div class="field">
+        <label>体高 cm</label>
+        <input type="number" id="horseHeight" placeholder="例：154" step="0.1">
+      </div>
+      <div class="field">
+        <label>胸囲 cm</label>
+        <input type="number" id="horseWaist" placeholder="例：172" step="0.1">
+      </div>
+      <div class="field">
+        <label>管囲 cm</label>
+        <input type="number" id="horseLeg" placeholder="例：20.5" step="0.1">
+      </div>
+    </div>
+
+    <!-- 血統HTMLアップロード -->
+    <div class="divider"></div>
+    <div style="font-size:10px;letter-spacing:.2em;color:#5a5248;text-transform:uppercase;margin-bottom:8px;">血統クロス情報（任意）</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#1c1e22;border:1px solid #252320;border-radius:6px;padding:8px 14px;font-size:12px;color:#706860;transition:border-color .2s;" id="pedigreeLabelBtn">
+        <span style="font-size:1.1em;">🧬</span>
+        <span id="pedigreeFileName">Pedigreeツールの出力HTMLを選択</span>
+        <input type="file" id="pedigreeInput" accept=".html,.htm" style="display:none;">
+      </label>
+      <button onclick="document.getElementById('pedigreeInput').value='';document.getElementById('pedigreeFileName').textContent='Pedigreeツールの出力HTMLを選択';window._pedigreeCrosses=null;document.getElementById('pedigreeClearBtn').style.display='none';" id="pedigreeClearBtn" style="display:none;background:transparent;border:1px solid #302e28;color:#706860;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;">✕ クリア</button>
+    </div>
+    <div id="pedigreePreview" style="display:none;margin-top:8px;background:#1a1c1a;border:1px solid #2a3020;border-radius:6px;padding:8px 12px;font-size:11px;color:#4caa84;"></div>
+
+    <button class="eval-btn" id="evalBtn" disabled>4路線 × 測尺データで評価する →</button>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="loading-anim">🐎</div>
+    <div class="loading-msg" id="loadingMsg">測尺データを解析中</div>
+    <div class="loading-step" id="loadingStep"></div>
+  </div>
+
+  <!-- 結果 -->
+  <div class="result-card" id="resultCard">
+    <div class="result-top">
+      <div>
+        <div style="font-size:10px;color:#5a5248;letter-spacing:.15em;margin-bottom:4px;">EVALUATION RESULT</div>
+        <div class="result-name" id="resultName">—</div>
+      </div>
+      <div class="result-overall-wrap">
+        <div class="result-overall-num" id="overallNum">—</div>
+        <div class="result-overall-sub">馬体スコア / 100</div>
+      </div>
+    </div>
+
+    <!-- 血統クロスパネル（Pedigree HTML読み込み時のみ表示） -->
+    <div id="crossSection" style="display:none;">
+      <div class="card-label">血統クロス（Pedigreeツール連携）</div>
+      <div class="cross-panel" id="crossPanel"></div>
+    </div>
+
+    <!-- のびしろ君パネル -->
+    <div class="card-label">測尺データ解析（のびしろ君連携）</div>
+    <div class="nobishiro-panel" id="nobPanel"></div>
+
+    <!-- 統計補正バー -->
+    <div class="card-label" style="margin-top:1.25rem;">測尺値 統計分布（2381頭データ）</div>
+    <div class="stat-panel" id="statPanel"></div>
+
+    <div class="divider"></div>
+
+    <!-- 4路線スコア -->
+    <div class="card-label">4路線 適性スコア（写真評価）</div>
+    <div class="routes-grid" id="routesGrid"></div>
+
+    <!-- 馬体評価 -->
+    <div class="card-label" style="margin-top:1.25rem;">馬体評価</div>
+    <div class="body-grid" id="bodyGrid"></div>
+
+    <!-- 適性タグ -->
+    <div class="card-label" style="margin-top:1.25rem;">適性予測</div>
+    <div class="apt-row" id="aptRow"></div>
+
+    <!-- 総評 -->
+    <div class="card-label" style="margin-top:1.25rem;">総評</div>
+    <div class="comment-box" id="commentBox"></div>
+
+    <button class="reset-btn" id="resetBtn">別の馬を評価する</button>
+  </div>
+
+</div>
+
+<script>
+const ROUTE_COLORS = { turf_short:'#c9a84c', turf_long:'#4caa84', dirt_short:'#7a9cc9', dirt_long:'#c97a4c' };
+const ROUTE_LABELS = { turf_short:'芝 短・マイル', turf_long:'芝 中・長距離', dirt_short:'ダ 短・マイル', dirt_long:'ダ 中・長距離' };
+
+// シローさん統計データ（2381頭）
+// 体高：高いほど成績良 / 胸囲：大きいほど良 / 管囲：成績相関薄いが参考に
+const STAT_RANGES = {
+  height: { label:'体高', unit:'cm', tiers:[{max:149,pct:5},{max:151,pct:20},{max:153,pct:45},{max:155,pct:70},{max:157,pct:87},{max:999,pct:100}] },
+  waist:  { label:'胸囲', unit:'cm', tiers:[{max:170,pct:15},{max:174,pct:35},{max:177,pct:55},{max:180,pct:75},{max:183,pct:90},{max:999,pct:100}] },
+  leg:    { label:'管囲', unit:'cm', tiers:[{max:19.5,pct:15},{max:20.5,pct:40},{max:21.5,pct:70},{max:22.5,pct:88},{max:999,pct:100}] },
+};
+
+// 管囲の標準値：体高 × 0.133（のびしろ君の計算式から）
+function calcStdLeg(height) { return height * 0.133; }
+
+function getPercentile(key, val) {
+  const s = STAT_RANGES[key];
+  for (const t of s.tiers) { if (val <= t.max) return t.pct; }
+  return 100;
+}
+
+const SYSTEM_PROMPT = `あなたは日本競馬の馬体評価専門家です。
+一口馬主クラブ募集時（1歳）の写真と測尺データから4路線の将来クラスを予測します。
+
+## 基準馬セット
+
+### 芝 短距離・マイル
+【Elite】
+- ジャンタルマンタル(GI4勝)：コンパクトで筋肉量豊富、キ甲高く胴短め、前躯に力感
+- グランアレグリア(GI6勝)：しなやかな四肢、柔軟な繋ぎ、全体的な完成度の高さ
+- ロードカナロア(GI6勝)：低重心、力強い前躯、丸みのある筋肉、スプリント特化型
+【Mid — 3勝C】モンファボリ・ヴェルスパー・ブルスクーロ：バランス良いがEliteに一歩届かず
+【Lower — 1〜2勝C】アーモロート・ブエナベントゥーラ・ユナカイト：線が細い、繋ぎ課題、非力
+
+### 芝 中・長距離
+【Elite】
+- イクイノックス(GI6勝)：長い首・高いキ甲・深い胸囲・豊富な後躯筋肉、完璧な均整
+- タスティエーラ(GI2勝)：胴長でゆったりした体型、柔らかな筋肉、大きな腹袋
+- リバティアイランド(GI4勝)：牝馬ながら筋肉量豊富、明瞭なキ甲、きれいな背線
+【Mid — 3勝C】フィリオアレグロ・エクセレントタイム・ジオフロント：体型は良いが後躯・胸囲でEliteに届かず
+【Lower — 1勝C】タンジェリンムーン・ユークレース・アルビオリクス：胴詰まり/線細い/繋ぎ課題
+
+### ダート 短距離・マイル
+【Elite】
+- ドライスタウト(Jpn1含む重賞3勝)：力強い前躯、ダート向きの密な筋肉、低く安定した重心
+- レッドルゼル(Jpn1含む重賞3勝)：コンパクトで硬質な筋肉、推進力のある後躯
+- ギルデッドミラー(重賞1勝)：ダート短距離型のがっしりした体型
+【Mid — 3勝C〜OPC】エレガントムーン・ラインオブフェイト・バトゥーキ
+【Lower — 1〜2勝C】スノークルーズ・フウゲツムヘン・ストームバンガード
+
+### ダート 中・長距離
+【Elite】
+- ヴァーミリアン(Jpn1含む重賞11勝)：雄大な体格、深い胸囲・大きな腹袋、後躯の粘り
+- フォーエバーヤング(Jpn1含む重賞10勝)：均整のとれた大型馬体、強い後躯
+- クリソベリル(Jpn1含む重賞6勝)：力強い後躯、スタミナ型の体型、骨量豊富
+【Mid — 3勝C】ニーズヘッグ・レシプロシティ・ユアフラッシュ
+【Lower — 未勝利〜1勝C】ニューダイアリーズ・エターナルディーバ・モーメントキャッチ
+
+## 統計的知見（シロー氏、2381頭データ）
+- 体高：高いほど成績良好（最も相関が高い項目）
+- 胸囲：大きいほど良い（牡馬178.5cm超は故障リスク上昇に注意）
+- 前肢の長さ：短いほど良好（体高に対する比率）
+- 首の長さ：長いほど良好
+- 腰高/体高比：中間が最良（低すぎ/高すぎは避ける）
+- 後肢の繋ぎ：立ち繋ぎ傾向が成績良好（ただし前肢故障率も上昇、トレードオフ）
+- 膝の角度：弓脚傾向が強いと故障リスク高め
+
+## 出力形式
+JSONのみ。余分なテキスト不要。
+
+{
+  "overall_score": <0-100>,
+  "routes": {
+    "turf_short":  {"score": <0-100>, "class": <"elite"|"mid"|"lower">},
+    "turf_long":   {"score": <0-100>, "class": <"elite"|"mid"|"lower">},
+    "dirt_short":  {"score": <0-100>, "class": <"elite"|"mid"|"lower">},
+    "dirt_long":   {"score": <0-100>, "class": <"elite"|"mid"|"lower">}
+  },
+  "body_eval": {
+    "首の長さ":  {"score": <1-10>, "comment": "<15字以内>"},
+    "前躯":      {"score": <1-10>, "comment": "<15字以内>"},
+    "後躯":      {"score": <1-10>, "comment": "<15字以内>"},
+    "前肢の長さ":{"score": <1-10>, "comment": "<15字以内>"},
+    "胴・腹袋":  {"score": <1-10>, "comment": "<15字以内>"},
+    "脚元":      {"score": <1-10>, "comment": "<15字以内>"}
+  },
+  "aptitude": {
+    "best_route": "<最も適性の高い路線>",
+    "distance":   "<距離適性>",
+    "surface":    "<芝|ダート|兼用>",
+    "maturity":   "<早熟|晩成|普通>"
+  },
+  "overall_comment": "<200字程度の総評（測尺データが渡されている場合はその観点も含めてコメント）>"
+}`;
+
+// 血統HTML解析（Shift_JIS対応）
+window._pedigreeCrosses = null;
+
+function parsePedigreeHTML(buffer) {
+  // Shift_JIS をデコード
+  const decoder = new TextDecoder('shift-jis');
+  const text = decoder.decode(buffer);
+
+  // クロスリストのテーブルを抽出（「9代内クロスリスト」テーブル）
+  const tableMatch = text.match(/クロスリスト[\s\S]*?<TABLE[\s\S]*?<\/TABLE>/i);
+  if (!tableMatch) return null;
+
+  const rows = tableMatch[0].match(/<TR[\s\S]*?<\/TR>/gi) || [];
+  const crosses = [];
+  for (const row of rows) {
+    const cells = row.match(/<TD[^>]*>([\s\S]*?)<\/TD>/gi) || [];
+    if (cells.length < 3) continue;
+    const getName = c => c.replace(/<[^>]+>/g, '').trim();
+    const name   = getName(cells[0]);
+    const pctStr = getName(cells[1]);
+    const detail = getName(cells[2]);
+    const pct = parseFloat(pctStr);
+    if (name && !isNaN(pct) && pct > 0) {
+      crosses.push({ name, pct, detail });
+    }
+  }
+  return crosses.length > 0 ? crosses : null;
+}
+
+document.getElementById('pedigreeInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const crosses = parsePedigreeHTML(ev.target.result);
+    if (crosses) {
+      window._pedigreeCrosses = crosses;
+      document.getElementById('pedigreeFileName').textContent = `✅ ${file.name}（${crosses.length}件）`;
+      document.getElementById('pedigreeLabelBtn').style.borderColor = '#4caa84';
+      document.getElementById('pedigreeClearBtn').style.display = '';
+      // プレビュー（上位3件）
+      const top3 = crosses.slice(0, 3).map(c => `${c.name} ${c.pct}%`).join('　/　');
+      document.getElementById('pedigreePreview').textContent = `主なクロス：${top3} ほか`;
+      document.getElementById('pedigreePreview').style.display = 'block';
+    } else {
+      document.getElementById('pedigreeFileName').textContent = '❌ 解析失敗（Pedigreeツールの出力HTMLを使用してください）';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+
+let currentMode = 'image'; // 'image' or 'pdf'
+let pdfSelectedPage = null; // { canvas, pageNum }
+
+// PDF.js worker
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('tabImage').classList.toggle('active', mode === 'image');
+  document.getElementById('tabPdf').classList.toggle('active', mode === 'pdf');
+  document.getElementById('modeImage').style.display = mode === 'image' ? '' : 'none';
+  document.getElementById('modePdf').style.display = mode === 'pdf' ? '' : 'none';
+  // リセット
+  selFile = selB64 = null;
+  pdfSelectedPage = null;
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('pdfPageArea').style.display = 'none';
+  document.getElementById('pdfThumbGrid').innerHTML = '';
+  document.getElementById('pdfSelectedInfo').textContent = 'ページ未選択';
+  checkReady();
+}
+
+// File handling
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) handleFile(f);
+});
+
+function handleFile(file) {
+  selFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    selB64 = e.target.result.split(',')[1];
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('previewFname').textContent = file.name;
+    dropZone.style.display = 'none';
+    document.getElementById('previewWrap').style.display = 'block';
+    checkReady();
+  };
+  reader.readAsDataURL(file);
+}
+
+function checkReady() {
+  const hasFile = currentMode === 'image' ? !!selB64 : !!pdfSelectedPage;
+  const hasRequired = document.getElementById('horseWeight').value &&
+                      document.getElementById('horseHeight').value;
+  document.getElementById('evalBtn').disabled = !(hasFile && hasRequired);
+}
+
+['horseWeight','horseHeight','horseWaist','horseLeg'].forEach(id =>
+  document.getElementById(id).addEventListener('input', checkReady)
+);
+
+// PDF mode
+const fileInputPdf = document.getElementById('fileInputPdf');
+const dropZonePdf  = document.getElementById('dropZonePdf');
+fileInputPdf.addEventListener('change', e => { if (e.target.files[0]) handlePdf(e.target.files[0]); });
+dropZonePdf.addEventListener('dragover', e => { e.preventDefault(); dropZonePdf.classList.add('drag'); });
+dropZonePdf.addEventListener('dragleave', () => dropZonePdf.classList.remove('drag'));
+dropZonePdf.addEventListener('drop', e => {
+  e.preventDefault(); dropZonePdf.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') handlePdf(f);
+});
+
+async function handlePdf(file) {
+  const grid = document.getElementById('pdfThumbGrid');
+  grid.innerHTML = '<div class="pdf-loading">📄 PDFを読み込み中...</div>';
+  document.getElementById('pdfPageArea').style.display = 'block';
+  document.getElementById('pdfSelectedInfo').textContent = 'ページ未選択';
+  pdfSelectedPage = null;
+  checkReady();
+
+  const arrayBuf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+  grid.innerHTML = '';
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 0.4 });
+    const canvas = document.createElement('canvas');
+    canvas.width  = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+
+    const thumb = document.createElement('div');
+    thumb.className = 'pdf-thumb';
+    thumb.dataset.page = i;
+    thumb.appendChild(canvas);
+    const num = document.createElement('div');
+    num.className = 'pdf-thumb-num';
+    num.textContent = `${i} ページ`;
+    thumb.appendChild(num);
+
+    thumb.addEventListener('click', async () => {
+      // 高解像度で再レンダリング
+      document.querySelectorAll('.pdf-thumb').forEach(t => t.classList.remove('selected'));
+      thumb.classList.add('selected');
+
+      const hiViewport = page.getViewport({ scale: 2.0 });
+      const hiCanvas = document.createElement('canvas');
+      hiCanvas.width  = hiViewport.width;
+      hiCanvas.height = hiViewport.height;
+      await page.render({ canvasContext: hiCanvas.getContext('2d'), viewport: hiViewport }).promise;
+
+      selB64 = hiCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+      selFile = { type: 'image/jpeg' };
+      pdfSelectedPage = { pageNum: i };
+
+      document.getElementById('pdfSelectedInfo').textContent = `${i} ページ を選択中`;
+      checkReady();
+    });
+
+    grid.appendChild(thumb);
+  }
+}
+
+// Tab switching
+document.querySelectorAll('.ref-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const route = tab.dataset.route;
+    document.querySelectorAll('.ref-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.ref-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelector(`.ref-content[data-route="${route}"]`).classList.add('active');
+  });
+});
+
+document.getElementById('evalBtn').addEventListener('click', runEval);
+
+async function runEval() {
+  if (!selB64) return;
+
+  const name    = document.getElementById('horseName').value || '評価馬';
+  const sex     = document.getElementById('horseSex').value;
+  const birth   = document.getElementById('horseBirth').value;
+  const measure = document.getElementById('measureDate').value;
+  const weight  = parseFloat(document.getElementById('horseWeight').value);
+  const height  = parseFloat(document.getElementById('horseHeight').value);
+  const waist   = parseFloat(document.getElementById('horseWaist').value) || null;
+  const leg     = parseFloat(document.getElementById('horseLeg').value) || null;
+
+  const evalBtn = document.getElementById('evalBtn');
+  const loading = document.getElementById('loading');
+  const errorMsg = document.getElementById('errorMsg');
+
+  evalBtn.disabled = true;
+  loading.style.display = 'block';
+  document.getElementById('resultCard').style.display = 'none';
+  errorMsg.style.display = 'none';
+
+  // Step 1: のびしろ君API
+  document.getElementById('loadingMsg').textContent = 'のびしろ君で3歳体重を予測中';
+  document.getElementById('loadingStep').textContent = '(1/2) 測尺データ送信中...';
+
+  let nobData = null;
+  try {
+    // 日付パース（年/月/日 または 月/日）
+    const bParts = birth.split('/').map(Number);
+    const mParts = measure.split('/').map(Number);
+    const [by, bm, bd] = bParts.length === 3 ? bParts : [2025, bParts[0], bParts[1]];
+    const [my2, mm2, md2] = mParts.length === 3 ? mParts : [2026, mParts[0], mParts[1]];
+
+    const birthDate   = new Date(by, bm-1, bd);
+    const measureDate = new Date(my2, mm2-1, md2);
+    const baseDate    = new Date(2028, 0, 1);
+    const daysold = Math.round((measureDate - birthDate) / 86400000);
+    const measureDays = Math.round((baseDate - measureDate) / 86400000);
+
+    const sexCode = sex === '牡' ? 1 : sex === '牝' ? 0 : 0;
+
+    const payload = {
+      sex: sexCode,
+      height: height,
+      waist: waist || 175,
+      weight_age1: weight,
+      measure: measureDays,
+      daysold: daysold,
+    };
+
+    const res = await fetch('https://horse-scout-proxy.onrender.com/api/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      nobData = await res.json();
+    }
+  } catch (e) {
+    // APIが落ちていてもVision評価は続行
+    console.warn('のびしろ君API unavailable:', e);
+  }
+
+  // Step 2: Claude Vision API
+  document.getElementById('loadingMsg').textContent = '4路線の馬体を解析中';
+  document.getElementById('loadingStep').textContent = '(2/2) Vision AI評価中...';
+
+  let measureInfo = `測尺時体重：${weight}kg、体高：${height}cm`;
+  if (waist) measureInfo += `、胸囲：${waist}cm`;
+  if (leg)   measureInfo += `、管囲：${leg}cm`;
+  if (sex)   measureInfo += `、性別：${sex}`;
+  if (nobData?.predicted_weight) measureInfo += `、3歳時予測体重：${nobData.predicted_weight}kg`;
+
+  // 血統クロス情報
+  let crossInfo = '';
+  if (window._pedigreeCrosses && window._pedigreeCrosses.length > 0) {
+    const top5 = window._pedigreeCrosses.slice(0, 5);
+    crossInfo = '【血統クロス情報（上位）】' + top5.map(c => `${c.name}（${c.pct}%、${c.detail}）`).join('、');
+  }
+
+  const userContent = [
+    { type: 'image', source: { type: 'base64', media_type: selFile.type || 'image/jpeg', data: selB64 } },
+    { type: 'text',  text: `馬名：${name}。${measureInfo}。${crossInfo ? crossInfo + '。' : ''}4路線すべての適性を評価してください。${crossInfo ? '血統クロス情報がある場合はoverall_commentにその配合的特徴も一言添えてください。' : ''}` }
+  ];
+
+  try {
+    const res = await fetch('https://horse-scout-proxy.onrender.com/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: userContent }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const raw = data.content.map(b => b.text || '').join('');
+    const result = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    renderResult(name, result, nobData, { weight, height, waist, leg });
+  } catch (err) {
+    errorMsg.textContent = `エラー: ${err.message}`;
+    errorMsg.style.display = 'block';
+    evalBtn.disabled = false;
+  } finally {
+    loading.style.display = 'none';
+  }
+}
+
+function classInfo(cls, routeKey) {
+  const color = ROUTE_COLORS[routeKey];
+  if (cls === 'elite') return { label:'Elite級', bg:`color-mix(in srgb, ${color} 12%, #1c1e22)`, color };
+  if (cls === 'mid')   return { label:'Mid級',   bg:'#101828', color:'#7a9cc9' };
+  return { label:'Lower級', bg:'#1a1a18', color:'#4a4840' };
+}
+
+function renderResult(name, r, nob, ms) {
+  document.getElementById('resultName').textContent = name;
+  document.getElementById('overallNum').textContent = r.overall_score;
+
+  // 血統クロスパネル
+  const crossSection = document.getElementById('crossSection');
+  const crossPanel   = document.getElementById('crossPanel');
+  if (window._pedigreeCrosses && window._pedigreeCrosses.length > 0) {
+    const top10 = window._pedigreeCrosses.slice(0, 10);
+    const maxPct = top10[0].pct;
+    crossPanel.innerHTML = top10.map(c => {
+      const barW = Math.round(c.pct / maxPct * 100);
+      return `<div class="cross-row">
+        <div class="cross-name">${c.name}</div>
+        <div class="cross-bar-bg"><div class="cross-bar-fill" style="width:${barW}%"></div></div>
+        <div class="cross-pct">${c.pct}%</div>
+        <div class="cross-detail">${c.detail}</div>
+      </div>`;
+    }).join('');
+    crossSection.style.display = 'block';
+  } else {
+    crossSection.style.display = 'none';
+  }
+
+  // のびしろ君パネル
+  const np = document.getElementById('nobPanel');
+  const predW = nob?.predicted_weight ?? null;
+  const increase = predW ? Math.round(predW - ms.weight) : null;
+  const stdLeg = ms.leg && ms.height ? calcStdLeg(ms.height) : null;
+  const legRatio = stdLeg && ms.leg ? (ms.leg / stdLeg * 100) : null;
+  const legDiag = !legRatio ? null : legRatio >= 103 ? {label:'太め', cls:'ok'} : legRatio >= 97 ? {label:'標準', cls:'ok'} : legRatio >= 93 ? {label:'やや細め', cls:'warn'} : {label:'細め', cls:'danger'};
+
+  np.innerHTML = `
+    <div class="nb-item">
+      <div class="nb-label">3歳時予測体重</div>
+      <div class="nb-value">${predW ? predW+'kg' : '—'}</div>
+      <div class="nb-sub">${increase !== null ? `現在比 +${increase}kg` : '※のびしろ君API接続失敗'}</div>
+    </div>
+    <div class="nb-item">
+      <div class="nb-label">測尺時体重</div>
+      <div class="nb-value" style="color:#e2ddd4">${ms.weight}kg</div>
+      <div class="nb-sub">体高 ${ms.height}cm${ms.waist ? ' / 胸囲 '+ms.waist+'cm' : ''}</div>
+    </div>
+    <div class="nb-item">
+      <div class="nb-label">管囲診断</div>
+      <div class="nb-value ${legDiag?.cls || ''}">${ms.leg ? ms.leg+'cm' : '—'}</div>
+      ${legDiag ? `<div class="nb-badge ${legDiag.cls}">${legDiag.label}（標準 ${stdLeg?.toFixed(1)}cm）</div>` : '<div class="nb-sub">管囲未入力</div>'}
+    </div>`;
+
+  // 統計補正バー
+  const sp = document.getElementById('statPanel');
+  const statItems = [
+    { key:'height', val:ms.height },
+    { key:'waist',  val:ms.waist },
+    { key:'leg',    val:ms.leg },
+  ].filter(s => s.val);
+
+  sp.innerHTML = statItems.map(s => {
+    const info = STAT_RANGES[s.key];
+    const pct  = getPercentile(s.key, s.val);
+    const color = pct >= 70 ? '#4caa84' : pct >= 40 ? '#c9a84c' : '#c97a4c';
+    return `
+      <div class="stat-row">
+        <div class="stat-name">${info.label}</div>
+        <div class="stat-bar-bg">
+          <div class="stat-bar-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="stat-val" style="color:${color}">${s.val}${info.unit}</div>
+        <div class="stat-pct">上位${100-pct}%</div>
+      </div>`;
+  }).join('');
+
+  // 4路線
+  const rg = document.getElementById('routesGrid');
+  rg.innerHTML = '';
+  for (const [key, val] of Object.entries(r.routes)) {
+    const ci = classInfo(val.class, key);
+    const color = ROUTE_COLORS[key];
+    rg.innerHTML += `
+      <div class="route-card">
+        <div class="route-name">${ROUTE_LABELS[key]}</div>
+        <div class="route-bar-bg"><div class="route-bar" style="width:${val.score}%;background:${color}"></div></div>
+        <div class="route-score" style="color:${color}">${val.score}</div>
+        <div class="route-class" style="background:${ci.bg};color:${ci.color}">${ci.label}</div>
+      </div>`;
+  }
+
+  // 馬体評価
+  const bg = document.getElementById('bodyGrid');
+  bg.innerHTML = '';
+  for (const [part, val] of Object.entries(r.body_eval)) {
+    bg.innerHTML += `
+      <div class="body-item">
+        <div class="body-part">${part}</div>
+        <div class="body-score">${val.score}<span>/10</span></div>
+        <div class="body-comment">${val.comment}</div>
+      </div>`;
+  }
+
+  // 適性タグ
+  const a = r.aptitude;
+  const surfColor = a.surface === '芝' ? '#4caa84' : a.surface === 'ダート' ? '#7a9cc9' : '#c9a84c';
+  document.getElementById('aptRow').innerHTML = `
+    <div class="apt-tag" style="border-color:#c9a84c;color:#c9a84c;background:#18140a">${a.best_route}</div>
+    <div class="apt-tag" style="border-color:#888;color:#aaa;background:#1a1a1a">${a.distance}</div>
+    <div class="apt-tag" style="border-color:${surfColor};color:${surfColor};background:#0e1410">${a.surface}</div>
+    <div class="apt-tag" style="border-color:#c97a4c;color:#c97a4c;background:#160e08">${a.maturity}</div>`;
+
+  document.getElementById('commentBox').textContent = r.overall_comment;
+  document.getElementById('resultCard').style.display = 'block';
+  document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  selFile = selB64 = null;
+  pdfSelectedPage = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fileInputPdf').value = '';
+  dropZone.style.display = 'block';
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('pdfPageArea').style.display = 'none';
+  document.getElementById('pdfThumbGrid').innerHTML = '';
+  document.getElementById('pdfSelectedInfo').textContent = 'ページ未選択';
+  document.getElementById('evalBtn').disabled = true;
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('errorMsg').style.display = 'none';
+  // 血統クロスリセット
+  window._pedigreeCrosses = null;
+  document.getElementById('pedigreeInput').value = '';
+  document.getElementById('pedigreeFileName').textContent = 'Pedigreeツールの出力HTMLを選択';
+  document.getElementById('pedigreeLabelBtn').style.borderColor = '';
+  document.getElementById('pedigreeClearBtn').style.display = 'none';
+  document.getElementById('pedigreePreview').style.display = 'none';
+  document.getElementById('crossSection').style.display = 'none';
+  ['horseName','horseBirth','measureDate','horseWeight','horseHeight','horseWaist','horseLeg'].forEach(id =>
+    document.getElementById(id).value = '');
+  document.getElementById('horseSex').value = '';
+});
+</script>
+</body>
+</html>
