@@ -2230,19 +2230,19 @@ async function handlePdf(file) {
   var pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
   grid.innerHTML = '';
 
-  for (var i = 1; i <= pdf.numPages; i++) {
-    var page = await pdf.getPage(i);
-    var viewport = page.getViewport({ scale: 0.4 });
-    var canvas = document.createElement('canvas');
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 0.4 });
+    const canvas = document.createElement('canvas');
     canvas.width  = viewport.width;
     canvas.height = viewport.height;
     await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
 
-    var thumb = document.createElement('div');
+    const thumb = document.createElement('div');
     thumb.className = 'pdf-thumb';
     thumb.dataset.page = i;
     thumb.appendChild(canvas);
-    var num = document.createElement('div');
+    const num = document.createElement('div');
     num.className = 'pdf-thumb-num';
     num.textContent = `${i} ページ`;
     thumb.appendChild(num);
@@ -2252,8 +2252,8 @@ async function handlePdf(file) {
       document.querySelectorAll('.pdf-thumb').forEach(t => t.classList.remove('selected'));
       thumb.classList.add('selected');
 
-      var hiViewport = page.getViewport({ scale: 2.0 });
-      var hiCanvas = document.createElement('canvas');
+      const hiViewport = page.getViewport({ scale: 2.0 });
+      const hiCanvas = document.createElement('canvas');
       hiCanvas.width  = hiViewport.width;
       hiCanvas.height = hiViewport.height;
       await page.render({ canvasContext: hiCanvas.getContext('2d'), viewport: hiViewport }).promise;
