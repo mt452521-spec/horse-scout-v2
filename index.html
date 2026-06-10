@@ -2031,11 +2031,26 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   window.ped_analyze    = analyze;
   window.ped_buildGrid  = buildGrid;
   window.ped_parseHtml  = parseTargetHTML;
-  window.ped_mergeFoal  = mergeFoal;
+  window.ped_mergeFoal  = function(sp, dp){
+    // 統合用：父・母のparsed結果から産駒データを合成
+    data = {};
+    if(sp){ data['s'] = sp.horse||'父'; for(var p1 in sp.data){ data['s'+p1] = sp.data[p1]; } }
+    if(dp){ data['d'] = dp.horse||'母'; for(var p2 in dp.data){ data['d'+p2] = dp.data[p2]; } }
+    var sn=(sp&&sp.horse)||'父', dn=(dp&&dp.horse)||'母';
+    var hn=$('ped-horseName'); if(hn) hn.value=sn+' × '+dn;
+    depth=5; var dpe=$('depth'); if(dpe) dpe.value='5';
+    var deepest = Math.max((sp&&(sp.extDepth||sp.fullDepth))||5, (dp&&(dp.extDepth||dp.fullDepth))||5);
+    anaDepthG = Math.min(9, deepest+1);
+    var ad=$('anaDepth'); if(ad) ad.value=String(anaDepthG);
+    buildGrid();
+  };
   window.ped_setData    = function(d,h,ad,nd){
     data=d;
     var hn=$('ped-horseName'); if(hn) hn.value=h||'';
     anaDepthG=ad||9;
+    depth=5;
+    var dp=$('depth'); if(dp) dp.value='5';
+    var ad2=$('anaDepth'); if(ad2) ad2.value=String(ad||9);
     var th=$('thresh'); if(th){ th.value=nd||55; var tv=$('thVal'); if(tv) tv.textContent=(nd||55)+'%'; }
   };
   window.ped_getResult  = function(){ return lastResult; };
@@ -2455,12 +2470,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   document.getElementById('resultCard').style.display = 'none';
   document.getElementById('errorMsg').style.display = 'none';
   // 血統クロスリセット
-    document.getElementById('pedigreeInput').value = '';
-  document.getElementById('pedigreeFileName').textContent = 'Pedigreeツールの出力HTMLを選択';
-  document.getElementById('pedigreeLabelBtn').style.borderColor = '';
-  document.getElementById('pedigreeClearBtn').style.display = 'none';
-  document.getElementById('pedigreePreview').style.display = 'none';
-  document.getElementById('crossSection').style.display = 'none';
+    document.getElementById('crossSection').style.display = 'none';
   ['horseName','horseBirth','measureDate','horseWeight','horseHeight','horseWaist','horseLeg'].forEach(id =>
     document.getElementById(id).value = '');
   document.getElementById('horseSex').value = '';
@@ -2546,7 +2556,7 @@ function runPedigreeAnalysis() {
   var depth = parseInt(document.getElementById('ped-depth').value)||9;
   var thresh = parseInt(document.getElementById('ped-thresh').value)||55;
   if(_pedMode==='single' && _singleParsed && window.ped_setData && window.ped_buildGrid && window.ped_analyze) {
-    window.ped_setData(_singleParsed.cells||{}, _singleParsed.horse||'', depth, thresh);
+    window.ped_setData(_singleParsed.data||{}, _singleParsed.horse||'', depth, thresh);
     window.ped_buildGrid();
     window.ped_analyze();
     var rp=document.getElementById('resultPanel'); if(rp) rp.style.display='';
