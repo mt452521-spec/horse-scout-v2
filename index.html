@@ -313,6 +313,11 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     background:#fffdf8;font-size:13px;transition:.15s}
 #ped-result , #ped-visible-results .importbox.drag{border-color:var(--accent);background:#fff4ec}
 
+
+/* 血統表セル強制スタイル */
+#pedTable td { border:1px solid #cdbfa6 !important; padding:0 !important; }
+#pedTable input.cell { width:100%; border:0; background:transparent; font-size:12px; padding:5px 6px; color:#23201b !important; min-width:88px; }
+#pedTable td.genhd { background:#efe7d6 !important; font-weight:700; text-align:center; font-size:11px; color:#6b5d44 !important; padding:5px 2px !important; }
 </style>
 </head>
 <body>
@@ -553,8 +558,8 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 <div style="max-width:960px;margin:0 auto;padding:0 1rem;"><div class="result-section-header" id="ped-result-header" style="display:none">血統クロス判定結果</div></div>
 <div style="max-width:960px;margin:0 auto;padding:0 1rem;"><div id="ped-visible-results">
   <!-- 血統表表示エリア（pedTableはここに移動済み） -->
-  <div class="gridwrap" style="overflow-x:auto;margin-bottom:1rem;">
-    <table class="ped" id="pedTable"></table>
+  <div class="gridwrap" style="overflow-x:auto;margin-bottom:1rem;background:#fffdf8;border:1px solid #cdbfa6;border-radius:8px;padding:4px;">
+    <table class="ped" id="pedTable" style="border-collapse:collapse;width:100%;background:#fffdf8;color:#23201b;"></table>
   </div>
 <section class="panel" id="resultPanel" style="display:none">
     <h2>判定結果</h2>
@@ -2559,6 +2564,11 @@ function runPedigreeAnalysis() {
     window.ped_setData(_singleParsed.data||{}, _singleParsed.horse||'', depth, thresh);
     window.ped_buildGrid();
     window.ped_analyze();
+    // デバッグ：データ件数を表示
+    var dbgNote=document.getElementById('pedLinkedNote');
+    var dataCount = _singleParsed.data ? Object.keys(_singleParsed.data).length : 0;
+    var tableLen = document.getElementById('pedTable').innerHTML.length;
+    if(dbgNote){ dbgNote.style.display='block'; dbgNote.textContent='血統データ '+dataCount+'件 / 表HTML '+tableLen+'文字'; }
     var rp=document.getElementById('resultPanel'); if(rp) rp.style.display='';
     var bp=document.getElementById('blogPanel');   if(bp) bp.style.display='';
     var ph=document.getElementById('ped-result-header'); if(ph) ph.style.display='';
