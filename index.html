@@ -326,7 +326,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 
 <div class="page-header"><div class="logo">Horse Scout</div><h1>募集馬<em>診断</em></h1><div class="subtitle">馬体評価 AI x 血統クロス判定 統合診断ツール</div></div>
 
-<div style="max-width:960px;margin:0 auto;padding:0 1rem;"><!-- 基準馬パネル -->
+<div style="max-width:960px;margin:0 auto;padding:0 1rem;display:none;"><!-- 基準馬パネル -->
   <div class="ref-panel">
     <div class="ref-tabs">
       <div class="ref-tab active" data-route="芝短マ">芝 短・マイル</div>
@@ -431,12 +431,12 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
       </div>
 
       <div class="divider"></div>
-      <div class="measure-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr;">
-        <div class="field"><label>馬名（任意）</label><input type="text" id="horseName" placeholder="例：テストホース"></div>
+      <div class="measure-grid" style="grid-template-columns: 1fr 1.5fr 1.5fr;">
         <div class="field"><label>性別</label><select id="horseSex"><option value="">選択</option><option value="牡">牡</option><option value="牝">牝</option></select></div>
         <div class="field"><label>生年月日</label><input type="text" id="horseBirth" placeholder="例：2025/4/15"><div class="field-hint">年/月/日</div></div>
         <div class="field"><label>測尺公開日</label><input type="text" id="measureDate" placeholder="例：2026/7/20"><div class="field-hint">年/月/日</div></div>
       </div>
+      <input type="hidden" id="horseName" value="">
       <div class="measure-grid" style="margin-top:10px;">
         <div class="field"><label>測尺時体重 kg</label><input type="number" id="horseWeight" placeholder="例：380"></div>
         <div class="field"><label>体高 cm</label><input type="number" id="horseHeight" placeholder="例：154" step="0.1"></div>
@@ -610,10 +610,10 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 <section class="panel" id="commentPanel" style="display:none">
     <h2>血統メモ（自動生成）</h2>
     <div class="importbox" id="catDrop" style="margin-top:0;margin-bottom:12px">
-      <strong>募集カタログ（PDF）を投下 → 基礎情報を自動入力</strong>　
-      <button class="btn small" id="catBtn">PDFを選択</button>
+      <strong>基礎情報は馬体診断で選んだカタログページから自動取得されます</strong>
+      <button class="btn small" id="catBtn" style="margin-left:8px">手動でPDFを選択</button>
       <input type="file" id="catInput" accept=".pdf" style="display:none">
-      <div class="hint" style="margin-top:6px">シルク等の募集カタログPDFから、馬名・父・母・厩舎・価格・生年月日・性別・毛色・産地・育成などを読み取ります（ドロップでも可）。読み取り後は各欄を手修正できます。</div>
+      <div class="hint" style="margin-top:6px">診断実行時、馬体診断で選択したカタログページから馬名・父・母・厩舎・価格・生年月日などを自動で読み取ります。別ページを使いたい場合のみ手動選択してください。読み取り後は各欄を手修正できます。</div>
     </div>
     <div id="basicGrid" style="display:none;margin-bottom:12px">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">
@@ -2061,6 +2061,17 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     var th=$('thresh'); if(th){ th.value=nd||55; var tv=$('thVal'); if(tv) tv.textContent=(nd||55)+'%'; }
   };
   window.ped_getResult  = function(){ return lastResult; };
+  window.ped_applyCatalogText = function(lines, rlines){
+    try { var info = parseCatalogText(lines, rlines); applyCatalog(info); return true; }
+    catch(e){ return false; }
+  };
+  window.ped_genComment = function(){
+    if(!lastResult) return;
+    var tone = $('tone') ? $('tone').value : 'assy';
+    currentComment = generateComment();
+    if($('commentArea')) $('commentArea').value = currentComment;
+    refreshBlogWithComment();
+  };
 
   // ---------- init ----------
   buildGrid();
@@ -2283,6 +2294,31 @@ async function handlePdf(file) {
       selB64 = hiCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
       selFile = { type: 'image/jpeg' };
       pdfSelectedPage = { pageNum: i };
+
+      // 選択ページのテキストも抽出（血統メモ用に保存）
+      try {
+        var tc = await page.getTextContent();
+        var vp1 = page.getViewport({ scale: 1 });
+        var pageW = vp1.width || 595;
+        var allItems = tc.items.map(function(it){ return {s:it.str, x:it.transform[4], y:it.transform[5]}; }).filter(function(it){ return it.s && it.s.trim(); });
+        var sorted = allItems.slice().sort(function(a,b){ return (b.y-a.y)||(a.x-b.x); });
+        var plines=[], pcur=null, plastY=null;
+        sorted.forEach(function(it){
+          if(plastY===null || Math.abs(it.y-plastY)>3){ if(pcur!==null) plines.push(pcur); pcur=it.s; plastY=it.y; }
+          else pcur += it.s;
+        });
+        if(pcur!==null) plines.push(pcur);
+        plines = plines.map(function(l){return l.trim();}).filter(Boolean);
+        var rItems = allItems.filter(function(it){ return it.x >= pageW*0.50; }).sort(function(a,b){ return (b.y-a.y)||(a.x-b.x); });
+        var rlines=[], rcur=null, rlastY=null;
+        rItems.forEach(function(it){
+          if(rlastY===null || Math.abs(it.y-rlastY)>3){ if(rcur!==null) rlines.push(rcur); rcur=it.s; rlastY=it.y; }
+          else rcur += it.s;
+        });
+        if(rcur!==null) rlines.push(rcur);
+        rlines = rlines.map(function(l){return l.trim();}).filter(Boolean);
+        window._catalogPageText = { lines: plines, rlines: rlines };
+      } catch(err) { window._catalogPageText = null; }
 
       document.getElementById('pdfSelectedInfo').textContent = `${i} ページ を選択中`;
       checkReady();
@@ -2579,6 +2615,13 @@ function runPedigreeAnalysis() {
     var rp=document.getElementById('resultPanel'); if(rp) rp.style.display='';
     var bp=document.getElementById('blogPanel');   if(bp) bp.style.display='';
     var ph=document.getElementById('ped-result-header'); if(ph) ph.style.display='';
+    // ③ カタログPDFテキストから基礎情報を自動入力
+    if(window._catalogPageText && window.ped_applyCatalogText){
+      window.ped_applyCatalogText(window._catalogPageText.lines, window._catalogPageText.rlines);
+    }
+    // ④ コメント自動生成
+    var cp=document.getElementById('commentPanel'); if(cp) cp.style.display='';
+    if(window.ped_genComment) window.ped_genComment();
   } else if(_pedMode==='cross' && _sireParsed && _damParsed && window.ped_mergeFoal && window.ped_analyze) {
     window.ped_mergeFoal(_sireParsed, _damParsed);
     window.ped_analyze();
