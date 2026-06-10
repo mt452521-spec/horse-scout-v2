@@ -27,7 +27,7 @@
 .ped-file-btn:hover{border-color:#c9a84c;color:#c9a84c;}
 .result-section{max-width:960px;margin:0 auto;padding:0 1rem;}
 .result-section-header{font-size:10px;letter-spacing:.2em;color:#5a5248;text-transform:uppercase;margin:1.5rem 0 1rem;border-top:1px solid #252320;padding-top:1.5rem;}
-#ped-result{max-width:960px;margin:0 auto;padding:0 1rem 3rem;}
+#ped-result, #ped-visible-results{max-width:960px;margin:0 auto;padding:0 1rem 3rem;}
 
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -217,8 +217,8 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 
   
   *{box-sizing:border-box}
-  #ped-result {margin:0;padding:0}
-  #ped-result {
+  #ped-result , #ped-visible-results {margin:0;padding:0}
+  #ped-result , #ped-visible-results {
     font-family:"Zen Kaku Gothic New",sans-serif;
     color:var(--ink); background:var(--paper);
     background-image:
@@ -226,92 +226,92 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
       radial-gradient(circle at 90% 0%, rgba(168,149,111,.10), transparent 45%);
     line-height:1.55; -webkit-font-smoothing:antialiased;
   }
-#ped-result .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 80px}
-#ped-result header.hd{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:18px}
-#ped-result header.hd h1{
+#ped-result , #ped-visible-results .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 80px}
+#ped-result , #ped-visible-results header.hd{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:18px}
+#ped-result , #ped-visible-results header.hd h1{
     font-family:"Shippori Mincho B1",serif;font-weight:800;
     font-size:clamp(22px,3.4vw,32px);margin:0;letter-spacing:.02em;
   }
-#ped-result header.hd .sub{color:var(--muted);font-size:13px;margin-top:4px}
-#ped-result .panel{
+#ped-result , #ped-visible-results header.hd .sub{color:var(--muted);font-size:13px;margin-top:4px}
+#ped-result , #ped-visible-results .panel{
     background:var(--paper2);border:1px solid var(--line);border-radius:10px;
     padding:16px;margin-bottom:18px;box-shadow:0 1px 0 #fff inset;
   }
-#ped-result .panel h2{
+#ped-result , #ped-visible-results .panel h2{
     font-family:"Shippori Mincho B1",serif;font-weight:700;font-size:16px;
     margin:0 0 12px;display:flex;align-items:center;gap:8px;
   }
-#ped-result .panel h2::before{content:"";width:6px;height:18px;background:var(--accent);border-radius:2px;display:inline-block}
-#ped-result .controls{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:flex-end}
-#ped-result .field{display:flex;flex-direction:column;gap:4px}
-#ped-result .field label{font-size:12px;color:var(--muted);font-weight:500}
-#ped-result .field input[type=text], #ped-result .field select{
+#ped-result , #ped-visible-results .panel h2::before{content:"";width:6px;height:18px;background:var(--accent);border-radius:2px;display:inline-block}
+#ped-result , #ped-visible-results .controls{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:flex-end}
+#ped-result , #ped-visible-results .field{display:flex;flex-direction:column;gap:4px}
+#ped-result , #ped-visible-results .field label{font-size:12px;color:var(--muted);font-weight:500}
+#ped-result , #ped-visible-results .field input[type=text], #ped-result , #ped-visible-results .field select{
     font-family:inherit;font-size:14px;padding:7px 9px;border:1px solid var(--line-strong);
     border-radius:6px;background:#fffdf8;color:var(--ink);min-width:160px;
   }
-#ped-result .field input[type=range]{width:180px}
-#ped-result .btn{
+#ped-result , #ped-visible-results .field input[type=range]{width:180px}
+#ped-result , #ped-visible-results .btn{
     font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;
     padding:9px 16px;border-radius:7px;border:1px solid var(--ink);
     background:var(--ink);color:var(--paper);transition:.12s;
   }
-#ped-result .btn:hover{transform:translateY(-1px)}
-#ped-result .btn.ghost{background:transparent;color:var(--ink)}
-#ped-result .btn.ghost:hover{background:var(--ink);color:var(--paper)}
-#ped-result .btn.small{padding:6px 11px;font-size:12px}
-#ped-result .hint{font-size:12px;color:var(--muted);margin-top:8px}
-#ped-result .warn{color:var(--accent);font-weight:700}
+#ped-result , #ped-visible-results .btn:hover{transform:translateY(-1px)}
+#ped-result , #ped-visible-results .btn.ghost{background:transparent;color:var(--ink)}
+#ped-result , #ped-visible-results .btn.ghost:hover{background:var(--ink);color:var(--paper)}
+#ped-result , #ped-visible-results .btn.small{padding:6px 11px;font-size:12px}
+#ped-result , #ped-visible-results .hint{font-size:12px;color:var(--muted);margin-top:8px}
+#ped-result , #ped-visible-results .warn{color:var(--accent);font-weight:700}
 
-#ped-result /* input pedigree grid */
+#ped-result , #ped-visible-results /* input pedigree grid */
   .gridwrap{overflow:auto;max-height:560px;border:1px solid var(--line);border-radius:8px;background:#fffdf8}
-#ped-result table.ped{border-collapse:collapse;width:100%}
-#ped-result table.ped td{
+#ped-result , #ped-visible-results table.ped{border-collapse:collapse;width:100%}
+#ped-result , #ped-visible-results table.ped td{
     border:1px solid var(--line);padding:0;vertical-align:middle;
   }
-#ped-result table.ped td.genhd{background:var(--paper2);font-weight:700;text-align:center;font-size:11px;color:var(--muted);padding:5px 2px}
-#ped-result table.ped input.cell{
+#ped-result , #ped-visible-results table.ped td.genhd{background:var(--paper2);font-weight:700;text-align:center;font-size:11px;color:var(--muted);padding:5px 2px}
+#ped-result , #ped-visible-results table.ped input.cell{
     width:100%;border:0;background:transparent;font-family:inherit;font-size:12px;
     padding:5px 6px;color:var(--ink);min-width:88px;
   }
-#ped-result table.ped input.cell:focus{outline:2px solid var(--accent);outline-offset:-2px;background:#fff8ec}
-#ped-result table.ped td.s-half{background:#fffdf8}
-#ped-result table.ped td.d-half{background:#faf6ec}
+#ped-result , #ped-visible-results table.ped input.cell:focus{outline:2px solid var(--accent);outline-offset:-2px;background:#fff8ec}
+#ped-result , #ped-visible-results table.ped td.s-half{background:#fffdf8}
+#ped-result , #ped-visible-results table.ped td.d-half{background:#faf6ec}
 
-#ped-result /* results */
+#ped-result , #ped-visible-results /* results */
   .res-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
-#ped-result .card{background:#fffdf8;border:1px solid var(--line);border-radius:9px;padding:13px 14px}
-#ped-result .card .tag{display:inline-block;font-weight:700;font-size:12px;padding:2px 9px;border-radius:20px;margin-bottom:9px}
-#ped-result .tag.direct{color:var(--c-direct);background:var(--c-direct-bg)}
-#ped-result .tag.full{color:var(--c-full);background:var(--c-full-bg)}
-#ped-result .tag.three{color:var(--c-three);background:var(--c-three-bg)}
-#ped-result .tag.near{color:var(--c-near);background:var(--c-near-bg)}
-#ped-result .tag.quarter{color:var(--c-quarter);background:var(--c-quarter-bg)}
-#ped-result ul.crosslist{list-style:none;margin:0;padding:0;font-size:13.5px;max-height:300px;overflow:auto}
-#ped-result ul.crosslist li{padding:4px 0;border-bottom:1px dotted var(--line);display:flex;justify-content:space-between;gap:10px}
-#ped-result ul.crosslist li:last-child{border-bottom:0}
-#ped-result ul.crosslist .nm{font-weight:500}
-#ped-result ul.crosslist .dg{font-weight:700;white-space:nowrap;font-family:"Shippori Mincho B1",serif}
-#ped-result .pct{font-size:11px;color:var(--muted);font-weight:500;margin-left:6px}
-#ped-result .empty{color:var(--muted);font-size:13px}
+#ped-result , #ped-visible-results .card{background:#fffdf8;border:1px solid var(--line);border-radius:9px;padding:13px 14px}
+#ped-result , #ped-visible-results .card .tag{display:inline-block;font-weight:700;font-size:12px;padding:2px 9px;border-radius:20px;margin-bottom:9px}
+#ped-result , #ped-visible-results .tag.direct{color:var(--c-direct);background:var(--c-direct-bg)}
+#ped-result , #ped-visible-results .tag.full{color:var(--c-full);background:var(--c-full-bg)}
+#ped-result , #ped-visible-results .tag.three{color:var(--c-three);background:var(--c-three-bg)}
+#ped-result , #ped-visible-results .tag.near{color:var(--c-near);background:var(--c-near-bg)}
+#ped-result , #ped-visible-results .tag.quarter{color:var(--c-quarter);background:var(--c-quarter-bg)}
+#ped-result , #ped-visible-results ul.crosslist{list-style:none;margin:0;padding:0;font-size:13.5px;max-height:300px;overflow:auto}
+#ped-result , #ped-visible-results ul.crosslist li{padding:4px 0;border-bottom:1px dotted var(--line);display:flex;justify-content:space-between;gap:10px}
+#ped-result , #ped-visible-results ul.crosslist li:last-child{border-bottom:0}
+#ped-result , #ped-visible-results ul.crosslist .nm{font-weight:500}
+#ped-result , #ped-visible-results ul.crosslist .dg{font-weight:700;white-space:nowrap;font-family:"Shippori Mincho B1",serif}
+#ped-result , #ped-visible-results .pct{font-size:11px;color:var(--muted);font-weight:500;margin-left:6px}
+#ped-result , #ped-visible-results .empty{color:var(--muted);font-size:13px}
 
-#ped-result /* blog output */
+#ped-result , #ped-visible-results /* blog output */
   #blogOut{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px}
-#ped-result .ta{width:100%;min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;
+#ped-result , #ped-visible-results .ta{width:100%;min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;
       border:1px solid var(--line-strong);border-radius:6px;padding:9px;background:#fffdf8;color:var(--ink);resize:vertical}
-#ped-result .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}
-#ped-result .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
-#ped-result .legend span{display:inline-flex;align-items:center;gap:5px}
-#ped-result .sw{width:13px;height:13px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.15)}
-#ped-result details.note{margin-top:10px;font-size:12.5px;color:var(--muted)}
-#ped-result details.note summary{cursor:pointer;font-weight:700;color:var(--ink)}
-#ped-result details.note p{margin:8px 0}
-#ped-result code{background:var(--paper2);padding:1px 5px;border-radius:4px;font-size:12px}
-#ped-result .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);
+#ped-result , #ped-visible-results .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}
+#ped-result , #ped-visible-results .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
+#ped-result , #ped-visible-results .legend span{display:inline-flex;align-items:center;gap:5px}
+#ped-result , #ped-visible-results .sw{width:13px;height:13px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.15)}
+#ped-result , #ped-visible-results details.note{margin-top:10px;font-size:12.5px;color:var(--muted)}
+#ped-result , #ped-visible-results details.note summary{cursor:pointer;font-weight:700;color:var(--ink)}
+#ped-result , #ped-visible-results details.note p{margin:8px 0}
+#ped-result , #ped-visible-results code{background:var(--paper2);padding:1px 5px;border-radius:4px;font-size:12px}
+#ped-result , #ped-visible-results .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);
     padding:11px 20px;border-radius:8px;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;z-index:99}
-#ped-result .toast.show{opacity:1}
-#ped-result .importbox{margin-top:12px;padding:14px 16px;border:2px dashed var(--line-strong);border-radius:9px;
+#ped-result , #ped-visible-results .toast.show{opacity:1}
+#ped-result , #ped-visible-results .importbox{margin-top:12px;padding:14px 16px;border:2px dashed var(--line-strong);border-radius:9px;
     background:#fffdf8;font-size:13px;transition:.15s}
-#ped-result .importbox.drag{border-color:var(--accent);background:#fff4ec}
+#ped-result , #ped-visible-results .importbox.drag{border-color:var(--accent);background:#fff4ec}
 
 </style>
 </head>
@@ -551,8 +551,11 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   </div>
 
 <div style="max-width:960px;margin:0 auto;padding:0 1rem;"><div class="result-section-header" id="ped-result-header" style="display:none">血統クロス判定結果</div></div>
-<div style="max-width:960px;margin:0 auto;padding:0 1rem;">
-<div id="ped-visible-results">
+<div style="max-width:960px;margin:0 auto;padding:0 1rem;"><div id="ped-visible-results">
+  <!-- 血統表表示エリア（pedTableはここに移動済み） -->
+  <div class="gridwrap" style="overflow-x:auto;margin-bottom:1rem;">
+    <table class="ped" id="pedTable"></table>
+  </div>
 <section class="panel" id="resultPanel" style="display:none">
     <h2>判定結果</h2>
     <div class="res-grid">
@@ -644,8 +647,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     <textarea class="ta" id="commentArea" style="min-height:96px" spellcheck="false" placeholder="「コメント生成」を押すと、検出したクロスや1/4異系から血統メモの下書きを作成します。生成後は自由に編集できます。"></textarea>
     <div class="hint">配合論（望田/笠理論）の語彙でクロスの“骨格”を記述します。各馬が伝える具体的な気性・体質などの断定はしません（事実確認できないため）。文章はそのまま編集可。</div>
   </section>
-</div>
-</div>
+</div></div>
 <div style="display:none" id="ped-hidden-controls">
 
   <header class="hd">
@@ -659,7 +661,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     <div class="controls">
       <div class="field">
         <label>馬名（血統表の主）</label>
-        <input type="text" id="horseName" placeholder="例：アーモンドアイ">
+        <input type="text" id="ped-horseName" placeholder="例：アーモンドアイ">
       </div>
       <div class="field">
         <label>表示世代数（血統表）</label>
@@ -702,10 +704,10 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
           <label style="font-size:13px;cursor:pointer"><input type="radio" name="impMode" value="cross"> 父×母のHTML（産駒予想）</label>
         </div>
       </div>
-      <div class="importbox" id="dropZone">
+      <div class="importbox" id="ped-dropZone2">
         <strong>Target血統表（HTML）を取込</strong>　ファイルをここにドロップ、または
         <button class="btn small" id="fileBtn">ファイルを選択</button>
-        <input type="file" id="fileInput" accept=".html,.htm" style="display:none">
+        <input type="file" id="ped-fileInput2" accept=".html,.htm" style="display:none">
         <div class="hint" style="margin-top:6px">TARGET frontier JVの「HTML表示」で保存した血統表に対応（Shift_JIS可）。1〜7代を完全取込し、8〜9代（父系中心の部分データ）も保持します。</div>
       </div>
       <div class="importbox" id="dropZoneCross" style="display:none">
@@ -732,7 +734,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   <section class="panel">
     <h2>血統入力</h2>
     <div class="hint" style="margin-top:0;margin-bottom:10px">上半分が父系、下半分が母系。Tabキーで各世代を上から下へ移動できます。空欄は不明として扱います。<strong>同じ馬は表記を統一</strong>してください（判定は名前一致で行います）。</div>
-    <div class="gridwrap"><table class="ped" id="pedTable"></table></div>
+    <div class="gridwrap-placeholder"></div>
     <div class="row">
       <button class="btn" id="analyzeBtn">クロスを解析する</button>
     </div>
@@ -753,8 +755,6 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 
 <script>
 // === Pedigree エンジン ===
-(function(){
-"use strict";
 
 "use strict";
 (function(){
@@ -1035,7 +1035,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     });
 
     lastResult = {direct:direct, full:full, three:three, near:near, quarter:quarter,
-                  sire:name('s'), dam:name('d'), sireSire:name('ss'), damSire:name('ds'), horse:($('horseName').value||'').trim()};
+                  sire:name('s'), dam:name('d'), sireSire:name('ss'), damSire:name('ds'), horse:($('ped-horseName').value||'').trim()};
     renderResults(direct, full, three, near, quarter, nameToPaths);
     renderBlog(direct, full, three, near, nameToPaths);
     $('commentPanel').style.display='';
@@ -1065,9 +1065,6 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   }
   function renderResults(direct, full, three, near, quarter, ntp){
     $('resultPanel').style.display='';
-    window._lastPedigreeResult = {direct:direct, full:full, three:three, near:near, quarter:quarter};
-    var nb=document.getElementById('pedLinkedNote');
-    if(nb){nb.style.display='block';nb.textContent='✅ 血統クロス判定完了 — 馬体診断の総評に反映されます';}
     // 結果をグローバルに保存（Horse Scout連携用）
     window._lastPedigreeResult = {direct:direct, full:full, three:three, near:near};
     // 連携通知
@@ -1204,7 +1201,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     t += '</table>';
 
     var sum = crossSummaryHtml(direct, full, three, near);
-    var horse = ($('horseName').value||'').trim();
+    var horse = ($('ped-horseName').value||'').trim();
     var anaTxt = $('anaDepth') ? $('anaDepth').value : depth;
     var title = horse ? '<p style="font-family:'+famly+';font-weight:700;margin:0 0 6px;font-size:14px">'+esc(horse)+'　'+depth+'代血統表</p>' : '';
 
@@ -1487,12 +1484,12 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   }
 
   // ---------- save / load ----------
-  function snapshot(){ return JSON.stringify({depth:depth, anaDepth:$('anaDepth').value, horse:$('horseName').value, data:data}); }
+  function snapshot(){ return JSON.stringify({depth:depth, anaDepth:$('anaDepth').value, horse:$('ped-horseName').value, data:data}); }
   function restore(obj){
     try{
       var o = typeof obj==='string'? JSON.parse(obj):obj;
       data = o.data||{};
-      $('horseName').value = o.horse||'';
+      $('ped-horseName').value = o.horse||'';
       if(o.depth){ $('depth').value=o.depth; }
       if(o.anaDepth){ $('anaDepth').value=o.anaDepth; }
       buildGrid();
@@ -1606,7 +1603,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 
   function applyImport(parsed){
     data = parsed.data;
-    if(parsed.horse) $('horseName').value = parsed.horse;
+    if(parsed.horse) $('ped-horseName').value = parsed.horse;
     // 表示は5代でコンパクトに（データが浅ければそれに合わせる）
     var dispDepth = Math.min(parsed.fullDepth, 5);
     $('depth').value = String(dispDepth);
@@ -1659,7 +1656,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     }
     var sn = sireParsed ? (sireParsed.horse||'父') : '父';
     var dn = damParsed ? (damParsed.horse||'母') : '母';
-    $('horseName').value = sn+' × '+dn;
+    $('ped-horseName').value = sn+' × '+dn;
     $('depth').value = '5';
     // 産駒の世代 = 親の世代 +1（上限9代）
     var anaD = Math.min(9, deepest + 1);
@@ -1879,7 +1876,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     if(info.measure) setB('b_measure', info.measure);
     else if(!$('b_measure').value.trim()) $('b_measure').value='体高---.-,胸囲---.-,管囲--.-,体重---';
     // 馬名欄（上部）も未入力なら埋める
-    if(info.name && !$('horseName').value.trim()) $('horseName').value = info.name+'の24';
+    if(info.name && !$('ped-horseName').value.trim()) $('ped-horseName').value = info.name+'の24';
     // 読み取れた項目数をフィードバック
     var ids=['b_name','b_sire','b_dam','b_damsire','b_stable','b_base','b_sex','b_color','b_birth','b_origin','b_farm','b_total'];
     var filled=ids.filter(function(id){ return ($(id).value||'').trim(); }).length;
@@ -1940,7 +1937,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   function loadDemo(){
     // 動作確認用デモ（全兄弟・3/4同血・ニアリー・直接クロスを意図的に含む合成データ）
     $('depth').value='5'; depth=5;
-    $('horseName').value='デモホース';
+    $('ped-horseName').value='デモホース';
     data = {};
     function set(p,n){ data[p]=n; }
     // 父系
@@ -1968,10 +1965,10 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   $('buildBtn').addEventListener('click', buildGrid);
   $('analyzeBtn').addEventListener('click', analyze);
   $('thresh').addEventListener('input', function(){ $('thVal').textContent=this.value+'%'; });
-  $('fileBtn').addEventListener('click', function(){ $('fileInput').click(); });
-  $('fileInput').addEventListener('change', function(){ if(this.files&&this.files[0]) readTargetFile(this.files[0]); this.value=''; });
+  $('fileBtn').addEventListener('click', function(){ $('ped-fileInput2').click(); });
+  $('ped-fileInput2').addEventListener('change', function(){ if(this.files&&this.files[0]) readTargetFile(this.files[0]); this.value=''; });
   (function(){
-    var dz=$('dropZone');
+    var dz=$('ped-dropZone2');
     ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev,function(e){e.preventDefault();dz.classList.add('drag');}); });
     ['dragleave','drop'].forEach(function(ev){ dz.addEventListener(ev,function(e){e.preventDefault();dz.classList.remove('drag');}); });
     dz.addEventListener('drop',function(e){ var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) readTargetFile(f); });
@@ -1979,7 +1976,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 
   // import-mode switch
   function setImpMode(mode){
-    $('dropZone').style.display = (mode==='single')?'':'none';
+    $('ped-dropZone2').style.display = (mode==='single')?'':'none';
     $('dropZoneCross').style.display = (mode==='cross')?'':'none';
   }
   Array.prototype.forEach.call(document.getElementsByName('impMode'), function(r){
@@ -2014,7 +2011,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   })();
 
   $('sampleBtn').addEventListener('click', loadDemo);
-  $('clearBtn').addEventListener('click', function(){ data={}; sireParsed=null; damParsed=null; $('sireState').textContent='未取込'; $('sireState').style.color='var(--muted)'; $('damState').textContent='未取込'; $('damState').style.color='var(--muted)'; $('horseName').value=''; buildGrid(); $('resultPanel').style.display='none'; $('blogPanel').style.display='none'; $('commentPanel').style.display='none'; currentComment=''; $('commentArea').value=''; toast('クリアしました'); });
+  $('clearBtn').addEventListener('click', function(){ data={}; sireParsed=null; damParsed=null; $('sireState').textContent='未取込'; $('sireState').style.color='var(--muted)'; $('damState').textContent='未取込'; $('damState').style.color='var(--muted)'; $('ped-horseName').value=''; buildGrid(); $('resultPanel').style.display='none'; $('blogPanel').style.display='none'; $('commentPanel').style.display='none'; currentComment=''; $('commentArea').value=''; toast('クリアしました'); });
   $('saveBtn').addEventListener('click', function(){ try{localStorage.setItem(STORE_KEY, snapshot()); toast('ブラウザに保存しました');}catch(e){toast('保存不可（ローカルで開くと有効）');} });
   $('loadBtn').addEventListener('click', function(){ var s=null; try{s=localStorage.getItem(STORE_KEY);}catch(e){} if(s) restore(s); else toast('保存データがありません'); });
 
@@ -2030,21 +2027,26 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   $('commentArea').addEventListener('input', function(){ currentComment = this.value; refreshBlogWithComment(); });
   $('copyCommentBtn').addEventListener('click', function(){ var v=$('commentArea').value.trim(); if(v) copyText(v,'コメントをコピーしました'); else toast('先に生成してください'); });
 
+  // === グローバル公開 ===
+  window.ped_analyze    = analyze;
+  window.ped_buildGrid  = buildGrid;
+  window.ped_parseHtml  = parseTargetHTML;
+  window.ped_mergeFoal  = mergeFoal;
+  window.ped_setData    = function(d,h,ad,nd){
+    data=d;
+    var hn=$('ped-horseName'); if(hn) hn.value=h||'';
+    anaDepthG=ad||9;
+    var th=$('thresh'); if(th){ th.value=nd||55; var tv=$('thVal'); if(tv) tv.textContent=(nd||55)+'%'; }
+  };
+  window.ped_getResult  = function(){ return lastResult; };
+
   // ---------- init ----------
   buildGrid();
 })();
 
-// 統合用：公開
-window._pedAnalyze = analyze;
-window._pedBuildGrid = buildGrid;
-window._pedParseTargetHtml = parseTargetHtml;
-window._pedData = function(){ return data; };
-window._pedSetData = function(d, h, ad, nd){ data=d; horseName=h; anaDepthG=ad; nearThreshG=nd; };
-window._pedMergeFoal = mergeFoal;
 
-})();
-
-// === Horse Scout (global) ===
+// === Horse Scout ===
+var selFile = null, selB64 = null;
 
 var ROUTE_COLORS = { turf_short:'#c9a84c', turf_long:'#4caa84', dirt_short:'#7a9cc9', dirt_long:'#c97a4c' };
 var ROUTE_LABELS = { turf_short:'芝 短・マイル', turf_long:'芝 中・長距離', dirt_short:'ダ 短・マイル', dirt_long:'ダ 中・長距離' };
@@ -2310,11 +2312,11 @@ async function runEval() {
   if (waist) measureInfo += `、胸囲：${waist}cm`;
   if (leg)   measureInfo += `、管囲：${leg}cm`;
   if (sex)   measureInfo += `、性別：${sex}`;
-  if (nobData?.predicted_weight) measureInfo += `、3歳時予測体重：${nobData.predicted_weight}kg`;
+  // のびしろ君削除済み
 
   var crossInfo = '';
-  if (window._lastPedigreeResult) {
-    var lr=window._lastPedigreeResult, xp=[];
+  if (window.ped_getResult && window.ped_getResult()) {
+    var lr=window.ped_getResult(), xp=[];
     if(lr.full&&lr.full.length)   xp.push('全兄弟クロス：'+lr.full.map(function(f){return f.a+'='+f.b+' '+f.text;}).join('、'));
     if(lr.three&&lr.three.length) xp.push('3/4同血クロス：'+lr.three.map(function(t){return t.a+'≒'+t.b+' '+t.text;}).join('、'));
     if(lr.near&&lr.near.length)   xp.push('ニアリークロス：'+lr.near.slice(0,3).map(function(n){return n.a+'≒'+n.b+'(同血度'+Math.round(n.score*100)+'%)'+n.text;}).join('、'));
@@ -2366,8 +2368,8 @@ function renderResult(name, r, ms) {
   // 血統クロスパネル
   var crossSection = document.getElementById('crossSection');
   var crossPanel=document.getElementById('crossPanel');
-  if(window._lastPedigreeResult&&crossPanel){
-    var lr2=window._lastPedigreeResult,fc=lr2.full||[],tc=lr2.three||[],nc=lr2.near||[],dc=lr2.direct||[];
+  if(window.ped_getResult&&window.ped_getResult()&&crossPanel){
+    var lr2=window.ped_getResult(),fc=lr2.full||[],tc=lr2.three||[],nc=lr2.near||[],dc=lr2.direct||[];
     var mxp=dc.length?(dc[0].blood*100):1,h2='';
     if(fc.length){h2+='<div style="font-size:10px;color:#c97a4c;margin-bottom:5px;">全兄弟クロス</div>';h2+=fc.map(function(c){return '<div class="cross-row"><div class="cross-name" style="color:#c97a4c">'+c.a+'='+c.b+'</div><div style="flex:1"></div><div class="cross-detail" style="color:#c97a4c">'+c.text+'</div></div>';}).join('');}
     if(tc.length){h2+='<div style="font-size:10px;color:#7a9cc9;margin:8px 0 5px;">3/4同血クロス</div>';h2+=tc.map(function(c){return '<div class="cross-row"><div class="cross-name" style="color:#7a9cc9">'+c.a+' '+c.b+'</div><div style="flex:1"></div><div class="cross-detail" style="color:#7a9cc9">'+c.text+'</div></div>';}).join('');}
@@ -2487,20 +2489,20 @@ function readPedFile(file, cb) {
     var cs = /charset=([^\s"'>]+)/i.test(sniff) ? RegExp.$1.toLowerCase() : 'utf-8';
     var decoder = new TextDecoder(cs.indexOf('shift')>=0 ? 'shift-jis' : 'utf-8');
     var text = decoder.decode(new Uint8Array(buf));
-    var parsed = window._pedParseTargetHtml ? window._pedParseTargetHtml(text) : null;
+    var parsed = window.ped_parseHtml ? window.ped_parseHtml(text) : null;
     cb(parsed);
   };
   reader.readAsArrayBuffer(file);
 }
 
-// ped単頭ファイル
 (function(){
   var fi = document.getElementById('ped-fileInput');
   if(!fi) return;
   fi.addEventListener('change', function(){
     if(this.files&&this.files[0]) readPedFile(this.files[0], function(p){
       _singleParsed=p;
-      document.getElementById('ped-singleState').textContent = p ? ('✅ '+(p.horse||'血統表')+'取込完了') : '❌ 解析失敗';
+      var el=document.getElementById('ped-singleState');
+      if(el) el.textContent = p ? ('✅ '+(p.horse||'血統表')+'取込完了') : '❌ 解析失敗';
       checkReady();
     });
   });
@@ -2510,20 +2512,23 @@ function readPedFile(file, cb) {
     ['dragleave','drop'].forEach(function(ev){dz.addEventListener(ev,function(e){e.preventDefault();dz.classList.remove('drag');});});
     dz.addEventListener('drop',function(e){
       var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
-      if(f) readPedFile(f,function(p){ _singleParsed=p; document.getElementById('ped-singleState').textContent=p?('✅ '+(p.horse||'血統表')+'取込完了'):'❌ 解析失敗'; checkReady(); });
+      if(f) readPedFile(f,function(p){
+        _singleParsed=p;
+        var el=document.getElementById('ped-singleState');
+        if(el) el.textContent=p?('✅ '+(p.horse||'血統表')+'取込完了'):'❌ 解析失敗';
+        checkReady();
+      });
     });
   }
 })();
 
-// 父・母ファイル
 (function(){
   var si=document.getElementById('ped-sireInput');
   var di=document.getElementById('ped-damInput');
-  if(si) si.addEventListener('change',function(){ if(this.files&&this.files[0]) readPedFile(this.files[0],function(p){ _sireParsed=p; document.getElementById('ped-sireState').textContent=p?('✅ '+(p.horse||'父')):'❌ 失敗'; checkReady(); }); });
-  if(di) di.addEventListener('change',function(){ if(this.files&&this.files[0]) readPedFile(this.files[0],function(p){ _damParsed=p; document.getElementById('ped-damState').textContent=p?('✅ '+(p.horse||'母')):'❌ 失敗'; checkReady(); }); });
+  if(si) si.addEventListener('change',function(){ if(this.files&&this.files[0]) readPedFile(this.files[0],function(p){ _sireParsed=p; var el=document.getElementById('ped-sireState'); if(el) el.textContent=p?('✅ '+(p.horse||'父')):'❌'; checkReady(); }); });
+  if(di) di.addEventListener('change',function(){ if(this.files&&this.files[0]) readPedFile(this.files[0],function(p){ _damParsed=p; var el=document.getElementById('ped-damState'); if(el) el.textContent=p?('✅ '+(p.horse||'母')):'❌'; checkReady(); }); });
 })();
 
-// checkReadyを上書き
 var _origCheckReady = checkReady;
 checkReady = function() {
   var hasPhoto = (currentMode === 'image') ? !!selB64 : !!pdfSelectedPage;
@@ -2532,37 +2537,28 @@ checkReady = function() {
   document.getElementById('evalBtn').disabled = !(hasPhoto && hasSize && hasPed);
 };
 
-// depth/thresh
-(function(){
-  var pd=document.getElementById('ped-depth');
-  var pt=document.getElementById('ped-thresh');
-  if(pd) pd.addEventListener('change',function(){ if(window.anaDepthG!==undefined) window.anaDepthG=parseInt(this.value)||9; });
-  if(pt) pt.addEventListener('change',function(){ if(window.nearThreshG!==undefined) window.nearThreshG=parseInt(this.value)||55; });
-})();
-
-// evalBtnのクリックを診断実行に置き換え
-document.getElementById('evalBtn').removeEventListener('click', runEval);
 document.getElementById('evalBtn').addEventListener('click', function(){
-  // 1. Pedigree解析
   runPedigreeAnalysis();
-  // 2. HS評価
   runEval();
 });
 
 function runPedigreeAnalysis() {
   var depth = parseInt(document.getElementById('ped-depth').value)||9;
   var thresh = parseInt(document.getElementById('ped-thresh').value)||55;
-  if(_pedMode==='single' && _singleParsed && window._pedSetData && window._pedBuildGrid && window._pedAnalyze) {
-    window._pedSetData(_singleParsed.cells||{}, _singleParsed.horse||'', depth, thresh);
-    window._pedBuildGrid();
-    window._pedAnalyze();
-  } else if(_pedMode==='cross' && _sireParsed && _damParsed && window._pedMergeFoal && window._pedAnalyze) {
-    window._pedMergeFoal(_sireParsed, _damParsed);
-    window._pedAnalyze();
+  if(_pedMode==='single' && _singleParsed && window.ped_setData && window.ped_buildGrid && window.ped_analyze) {
+    window.ped_setData(_singleParsed.cells||{}, _singleParsed.horse||'', depth, thresh);
+    window.ped_buildGrid();
+    window.ped_analyze();
+    var rp=document.getElementById('resultPanel'); if(rp) rp.style.display='';
+    var bp=document.getElementById('blogPanel');   if(bp) bp.style.display='';
+    var ph=document.getElementById('ped-result-header'); if(ph) ph.style.display='';
+  } else if(_pedMode==='cross' && _sireParsed && _damParsed && window.ped_mergeFoal && window.ped_analyze) {
+    window.ped_mergeFoal(_sireParsed, _damParsed);
+    window.ped_analyze();
+    var rp2=document.getElementById('resultPanel'); if(rp2) rp2.style.display='';
+    var bp2=document.getElementById('blogPanel');   if(bp2) bp2.style.display='';
+    var ph2=document.getElementById('ped-result-header'); if(ph2) ph2.style.display='';
   }
-  var rp=document.getElementById('resultPanel'); if(rp) rp.style.display='';
-  var bp=document.getElementById('blogPanel');   if(bp) bp.style.display='';
-  var ph=document.getElementById('ped-result-header'); if(ph) ph.style.display='';
 }
 
 </script>
