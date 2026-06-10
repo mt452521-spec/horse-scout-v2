@@ -315,9 +315,11 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 
 
 /* 血統表セル強制スタイル */
-#pedTable td { border:1px solid #cdbfa6 !important; padding:0 !important; }
-#pedTable input.cell { width:100% !important; border:0 !important; background:#fffdf8 !important; font-size:12px !important; padding:5px 6px !important; color:#23201b !important; min-width:88px !important; -webkit-text-fill-color:#23201b !important; opacity:1 !important; }
-#pedTable td.genhd { background:#efe7d6 !important; font-weight:700; text-align:center; font-size:11px; color:#6b5d44 !important; padding:5px 2px !important; }
+#ped-visible-results #pedTable { display:table !important; }
+#ped-visible-results #pedTable tr { display:table-row !important; }
+#ped-visible-results #pedTable td { display:table-cell !important; border:1px solid #cdbfa6 !important; padding:0 !important; vertical-align:middle !important; background:#fffdf8 !important; }
+#ped-visible-results #pedTable input.cell { display:block !important; width:100% !important; height:auto !important; border:0 !important; background:#fffdf8 !important; font-size:12px !important; padding:5px 6px !important; color:#23201b !important; min-width:88px !important; -webkit-text-fill-color:#23201b !important; opacity:1 !important; visibility:visible !important; }
+#ped-visible-results #pedTable td.genhd { background:#efe7d6 !important; font-weight:700 !important; text-align:center !important; font-size:11px !important; color:#6b5d44 !important; padding:5px 2px !important; }
 </style>
 </head>
 <body>
@@ -2567,8 +2569,13 @@ function runPedigreeAnalysis() {
     // デバッグ：データ件数を表示
     var dbgNote=document.getElementById('pedLinkedNote');
     var dataCount = _singleParsed.data ? Object.keys(_singleParsed.data).length : 0;
-    var tableLen = document.getElementById('pedTable').innerHTML.length;
-    if(dbgNote){ dbgNote.style.display='block'; dbgNote.textContent='血統データ '+dataCount+'件 / 表HTML '+tableLen+'文字'; }
+    var pt = document.getElementById('pedTable');
+    var tableLen = pt ? pt.innerHTML.length : -1;
+    var cells = pt ? pt.querySelectorAll('input.cell') : [];
+    var filledCells = 0;
+    for(var ci=0; ci<cells.length; ci++){ if(cells[ci].value && cells[ci].value.trim()) filledCells++; }
+    var firstVal = cells.length>0 ? (cells[0].value||'(空)') : '(セルなし)';
+    if(dbgNote){ dbgNote.style.display='block'; dbgNote.textContent='データ'+dataCount+'件 / 表'+tableLen+'字 / セル'+cells.length+'個中'+filledCells+'個に値 / 先頭="'+firstVal+'"'; }
     var rp=document.getElementById('resultPanel'); if(rp) rp.style.display='';
     var bp=document.getElementById('blogPanel');   if(bp) bp.style.display='';
     var ph=document.getElementById('ped-result-header'); if(ph) ph.style.display='';
