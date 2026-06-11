@@ -1828,10 +1828,10 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 
     // ---- 母年齢・初仔・兄弟（産駒）----
     // 母行：「母<カナ><英名>（<2桁> <父>）」。カナと英名の間にスペースが無い場合もある。
-    var damM = famRaw.match(/母\s*([ァ-ヴ][ァ-ヴ ー]*?)\s*([A-Z][A-Za-z' .]+?)\s*[（(]\s*(\d{2})\s+/);
+    // 母行：「*カリーナミアCarina Mia（13 Malibu Moon）」形式（先頭*あり、カナ＋英名＋（生年 父））
+    var damM = famRaw.match(/[＊*]?([ァ-ヴ][ァ-ヴ ー]*?)\s*([A-Z][A-Za-z' .]+?)\s*[（(]\s*(\d{2})\s+[A-Za-z＊*]/);
     if(!damM){
-      // カナ名が拾えなくても、生年だけは「母…（NN 」から取る
-      var dmy = famRaw.match(/母[^（(]*[（(]\s*(\d{2})\s+/);
+      var dmy = famRaw.match(/[ァ-ヴ][ァ-ヴ ー]*[A-Za-z' .]*[（(]\s*(\d{2})\s+[A-Za-z]/);
       if(dmy) info.damBirthYY = dmy[1];
       else info.damBirthYY='';
     } else {
@@ -1857,23 +1857,23 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     // 兄弟（産駒）：母の直後〜「祖母」の前までの範囲で拾う。英名と実績（北米○勝/未出走等）を取得。
     info.siblings = [];
     if(!info.firstFoal){
-      var sIdx = famRaw.search(/母\s*[ァ-ヴ][ァ-ヴ ー]*\s*[A-Z][A-Za-z' .]+\s*[（(]\s*\d{2}\s/);
-      var eIdx = famRaw.search(/祖母/);
-      if(sIdx>=0){
-        var seg = famRaw.slice(sIdx, eIdx>sIdx?eIdx:undefined).replace(/\n/g,' ');
-        var DIG='0-9\uFF10-\uFF19\u3007\u4E00\u4E8C\u4E09\u56DB\u4E94\u516D\u4E03\u516B\u4E5D\u5341';
-        // カナ名 英名（生年 性別 父名）実績
-        var re=new RegExp(
-          '([\\u30A1-\\u30F4][\\u30A1-\\u30F4\\u30FC ]*?)\\s*([A-Z][A-Za-z\' .]+?)\\s*[\\uFF08(]\\s*(\\d{2})\\s*(\\u7261|\\u725D|\\u9A19|\\u30BB\\u30F3)\\s*[A-Za-z\' .]+?[\\uFF09)]\\s*'+
-          '((?:\\u5317\\u7C73|\\u4E9C|\\u65E5|\\u82F1|\\u611B|\\u4ECF|\\u8C6A)?\\s*(?:['+DIG+']+\\s*(?:\\u52DD|\\u6226))|\\u672A\\u51FA\\u8D70|\\u4E0D\\u51FA\\u8D70|\\u5165\\u7740)?'
-        ,'g');
+      // 「。産駒」の後ろ〜次の母系名（カナ＋英名（生年 で始まる）まで が本馬の母の産駒リスト
+      var sankuIdx = famRaw.indexOf('。産駒');
+      var seg = sankuIdx>=0 ? famRaw.slice(sankuIdx+3) : '';
+      if(seg){
+        // 次の母系（「ミス シンパティアMiss Simpatia（98 」のような英名+生年）で切る
+        var endM = seg.search(/[ァ-ヴー][ァ-ヴー ]*[A-Z][A-Za-z' .]+[（(]\s*\d{2}\s+[＊*]?[ァ-ヴA-Za-z]/);
+        if(endM > 0) seg = seg.slice(0, endM);
+        seg = seg.replace(/\n/g,' ').replace(/[○｜]/g,'');
+        // カナ名 [英名]?（年 性別 [毛色] 父）戦績
+        var re=/([ァ-ヴ][ァ-ヴー ]*?)(?:\s+[A-Z][A-Za-z' .]+)?\s*[（(]\s*(\d{2})\s*(牡|牝|騙|セン)\s*([^）)]*?)[）)]\s*([^（(]*?)(?=[ァ-ヴ][ァ-ヴー ]*(?:\s+[A-Z][A-Za-z' .]+)?\s*[（(]\s*\d{2}\s*[牡牝騙セ]|$)/g;
         var mm;
         while((mm=re.exec(seg))){
-          var jp=mm[1].replace(/\s/g,'');
-          var en=mm[2].trim();
-          var rec=(mm[5]||'').replace(/\s+/g,'').trim();
-          if(en && jp!==info.damJaFull){
-            info.siblings.push({ja:jp, en:en, sex:mm[4], yy:mm[3], record:rec});
+          var jp=(mm[1]||'').replace(/\s/g,'').trim();
+          var sire=(mm[4]||'').replace(/黒鹿|鹿毛|青鹿|青毛|芦毛|栗毛|鹿|栗|白|毛/g,'').trim();
+          var rec=(mm[5]||'').trim().split(/[，,]/)[0].replace(/\s+/g,'');
+          if(jp && jp!==info.damJaFull){
+            info.siblings.push({ja:jp, sex:mm[3], yy:mm[2], sire:sire, record:rec});
           }
         }
       }
@@ -1917,10 +1917,15 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
       setB('b_sibs','初仔のため兄弟なし');
     } else if(info.siblings && info.siblings.length){
       setB('b_sibs', info.siblings.map(function(s){
-        var nm = s.en || s.ja;          // 英語表記を優先
-        var rec = s.record ? ('（'+s.record+'）') : '';
-        return nm+rec;
-      }).join('、'));
+        var nm = s.ja || s.en || '';
+        var meta = [];
+        if(s.yy) meta.push('20'+s.yy);
+        if(s.sex) meta.push(s.sex);
+        if(s.sire) meta.push(s.sire);
+        var metaStr = meta.length ? ('（'+meta.join(' ')+'）') : '';
+        var rec = s.record ? (' '+s.record) : '';
+        return nm+metaStr+rec;
+      }).join('\n'));
     }
     // 馬体測尺（取れれば自動、無ければ空テンプレを入れて手入力を促す）
     if(info.measure) setB('b_measure', info.measure);
@@ -2362,11 +2367,7 @@ async function handlePdf(file) {
         if(rcur!==null) rlines.push(rcur);
         rlines = rlines.map(function(l){return l.trim();}).filter(Boolean);
         window._catalogPageText = { lines: plines, rlines: rlines };
-        console.log('=== カタログ右側テキスト(rlines) ===');
-        console.log(rlines.join('\n'));
-        console.log('=== カタログ左側テキスト(lines) ===');
-        console.log(plines.join('\n'));
-      } catch(err) { window._catalogPageText = null; console.warn('text extract error:', err); }
+      } catch(err) { window._catalogPageText = null; }
 
       document.getElementById('pdfSelectedInfo').textContent = `${i} ページ を選択中`;
       checkReady();
@@ -2667,18 +2668,6 @@ function runPedigreeAnalysis() {
         window.ped_applyCatalogText(window._catalogPageText.lines, window._catalogPageText.rlines);
       }
     } catch(e){ console.warn('catalog apply error:', e); }
-    // デバッグ：母情報・兄弟の抽出状況を画面表示
-    (function(){
-      var dn = document.getElementById('pedLinkedNote');
-      if(dn){
-        var damV = document.getElementById('b_damage') ? (document.getElementById('b_damage').value||'(空)') : '?';
-        var sibV = document.getElementById('b_sibs') ? (document.getElementById('b_sibs').value||'(空)') : '?';
-        var rl = (window._catalogPageText && window._catalogPageText.rlines) ? window._catalogPageText.rlines.length : 0;
-        dn.style.display='block';
-        dn.style.whiteSpace='pre-wrap';
-        dn.textContent = '【抽出デバッグ】母="'+damV+'" 兄弟="'+sibV+'" 右側'+rl+'行';
-      }
-    })();
     // ① 馬体欄・生年月日・性別を馬体診断の入力で上書き
     (function(){
       var h = document.getElementById('horseHeight').value;
