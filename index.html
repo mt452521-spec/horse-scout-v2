@@ -2109,11 +2109,12 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     catch(e){ return false; }
   };
   window.ped_genComment = function(){
-    if(!lastResult) return;
-    var tone = $('tone') ? $('tone').value : 'assy';
-    currentComment = generateComment();
-    if($('commentArea')) $('commentArea').value = currentComment;
-    refreshBlogWithComment();
+    try {
+      if(!lastResult) return;
+      currentComment = generateComment();
+      if($('commentArea')) $('commentArea').value = currentComment;
+      refreshBlogWithComment();
+    } catch(e){ console.warn('comment gen error:', e); }
   };
 
   // ---------- init ----------
@@ -2657,9 +2658,11 @@ function runPedigreeAnalysis() {
     var bp=document.getElementById('blogPanel');   if(bp) bp.style.display='';
     var ph=document.getElementById('ped-result-header'); if(ph) ph.style.display='';
     // ③ カタログPDFテキストから基礎情報を自動入力
-    if(window._catalogPageText && window.ped_applyCatalogText){
-      window.ped_applyCatalogText(window._catalogPageText.lines, window._catalogPageText.rlines);
-    }
+    try {
+      if(window._catalogPageText && window.ped_applyCatalogText){
+        window.ped_applyCatalogText(window._catalogPageText.lines, window._catalogPageText.rlines);
+      }
+    } catch(e){ console.warn('catalog apply error:', e); }
     // ① 馬体欄・生年月日・性別を馬体診断の入力で上書き
     (function(){
       var h = document.getElementById('horseHeight').value;
