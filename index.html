@@ -2362,7 +2362,11 @@ async function handlePdf(file) {
         if(rcur!==null) rlines.push(rcur);
         rlines = rlines.map(function(l){return l.trim();}).filter(Boolean);
         window._catalogPageText = { lines: plines, rlines: rlines };
-      } catch(err) { window._catalogPageText = null; }
+        console.log('=== カタログ右側テキスト(rlines) ===');
+        console.log(rlines.join('\n'));
+        console.log('=== カタログ左側テキスト(lines) ===');
+        console.log(plines.join('\n'));
+      } catch(err) { window._catalogPageText = null; console.warn('text extract error:', err); }
 
       document.getElementById('pdfSelectedInfo').textContent = `${i} ページ を選択中`;
       checkReady();
@@ -2663,6 +2667,18 @@ function runPedigreeAnalysis() {
         window.ped_applyCatalogText(window._catalogPageText.lines, window._catalogPageText.rlines);
       }
     } catch(e){ console.warn('catalog apply error:', e); }
+    // デバッグ：母情報・兄弟の抽出状況を画面表示
+    (function(){
+      var dn = document.getElementById('pedLinkedNote');
+      if(dn){
+        var damV = document.getElementById('b_damage') ? (document.getElementById('b_damage').value||'(空)') : '?';
+        var sibV = document.getElementById('b_sibs') ? (document.getElementById('b_sibs').value||'(空)') : '?';
+        var rl = (window._catalogPageText && window._catalogPageText.rlines) ? window._catalogPageText.rlines.length : 0;
+        dn.style.display='block';
+        dn.style.whiteSpace='pre-wrap';
+        dn.textContent = '【抽出デバッグ】母="'+damV+'" 兄弟="'+sibV+'" 右側'+rl+'行';
+      }
+    })();
     // ① 馬体欄・生年月日・性別を馬体診断の入力で上書き
     (function(){
       var h = document.getElementById('horseHeight').value;
