@@ -1323,16 +1323,9 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
       if(bv('b_measure')) L.push(bv('b_measure'));
       L.push('');
 
-      // ===== 【兄弟】 =====
-      var sibs = bv('b_sibs');
-      if(sibs){
-        L.push('【兄弟】');
-        L.push(sibs);
-        L.push('');
-      }
     }
 
-    // ===== 【基礎情報】＝クロス要約の一文（5代血統表だけのクロス＝全出現が5代以内）=====
+    // ===== 【基礎情報】＝クロス要約 ＋ 母○歳時の△番仔 =====
     L.push('【基礎情報】');
     var inner5 = R.direct.filter(function(d){
       var gens = d.sireGens.concat(d.damGens);
@@ -1346,9 +1339,19 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
       crossPhrase = '5代アウトブリード';
     }
     var damPart = '';
-    if(hasBasic && bv('b_damage')) damPart = 'で、'+bv('b_damage');
+    if(hasBasic && bv('b_damage')) damPart = '、'+bv('b_damage');
     L.push(crossPhrase + damPart);
     L.push('');
+
+    // ===== 【兄弟】＝一言の前に配置 =====
+    if(hasBasic){
+      var sibs = bv('b_sibs');
+      if(sibs){
+        L.push('【兄弟】');
+        L.push(sibs);
+        L.push('');
+      }
+    }
 
     // ===== 【5代血統表等から一言】＝複数文のクロス骨格コメント =====
     L.push('【5代血統表等から一言】');
@@ -1388,6 +1391,46 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     }
     L.push(sent.join('。')+'。');
     L.push('');
+
+    // ===== ④ 馬体診断の短評＋点数表（5代血統表等から一言の後）=====
+    var hs = window._lastHsResult;
+    if(hs){
+      // 馬体短評
+      if(hs.overall_comment){
+        L.push('【馬体診断から一言】');
+        L.push(hs.overall_comment);
+        L.push('');
+      }
+      // 点数表（ブログ用）
+      L.push('【適性スコア】');
+      var routeLabels = { turf_short:'芝短〜マイル', turf_long:'芝中〜長距離', dirt_short:'ダ短〜マイル', dirt_long:'ダ中〜長距離' };
+      if(hs.routes){
+        Object.keys(routeLabels).forEach(function(k){
+          if(hs.routes[k]){
+            var cls = hs.routes[k]['class'];
+            var clsJa = cls==='elite'?'Elite級':cls==='mid'?'Mid級':'Lower級';
+            L.push('　'+routeLabels[k]+'：'+hs.routes[k].score+'点（'+clsJa+'）');
+          }
+        });
+      }
+      L.push('　総合：'+hs.overall_score+'点 / 100');
+      L.push('');
+      // 馬体評価（部位別）
+      if(hs.body_eval){
+        L.push('【馬体評価】');
+        Object.keys(hs.body_eval).forEach(function(part){
+          var be = hs.body_eval[part];
+          L.push('　'+part+'：'+be.score+'/10　'+(be.comment||''));
+        });
+        L.push('');
+      }
+      // 適性タグ
+      if(hs.aptitude){
+        var a = hs.aptitude;
+        L.push('【適性】'+[a.best_route, a.distance, a.surface, a.maturity].filter(Boolean).join('／'));
+        L.push('');
+      }
+    }
 
     return L.join('\n').replace(/\n{3,}/g,'\n\n').replace(/\s+$/,'');
   }
@@ -2305,7 +2348,7 @@ async function handlePdf(file) {
         var plines=[], pcur=null, plastY=null;
         sorted.forEach(function(it){
           if(plastY===null || Math.abs(it.y-plastY)>3){ if(pcur!==null) plines.push(pcur); pcur=it.s; plastY=it.y; }
-          else pcur += it.s;
+          else pcur+= (it.s.match(/^[ -~]/)&&pcur.match(/[ -~]$/) ? '' : '') + it.s;
         });
         if(pcur!==null) plines.push(pcur);
         plines = plines.map(function(l){return l.trim();}).filter(Boolean);
@@ -2313,7 +2356,7 @@ async function handlePdf(file) {
         var rlines=[], rcur=null, rlastY=null;
         rItems.forEach(function(it){
           if(rlastY===null || Math.abs(it.y-rlastY)>3){ if(rcur!==null) rlines.push(rcur); rcur=it.s; rlastY=it.y; }
-          else rcur += it.s;
+          else rcur+= (it.s.match(/^[ -~]/)&&rcur.match(/[ -~]$/) ? '' : '') + it.s;
         });
         if(rcur!==null) rlines.push(rcur);
         rlines = rlines.map(function(l){return l.trim();}).filter(Boolean);
@@ -2420,6 +2463,9 @@ function classInfo(cls, routeKey) {
 }
 
 function renderResult(name, r, ms) {
+  // 馬体診断結果を保存（血統メモ用）
+  window._lastHsResult = r;
+  window._lastHsMeasure = ms;
   document.getElementById('resultName').textContent = name;
   document.getElementById('overallNum').textContent = r.overall_score;
 
@@ -2497,6 +2543,11 @@ function renderResult(name, r, ms) {
   document.getElementById('commentBox').textContent = r.overall_comment;
   document.getElementById('resultCard').style.display = 'block';
   document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
+
+  // 馬体診断完了後、血統コメントを再生成（馬体短評を含めるため）
+  if(window.ped_getResult && window.ped_getResult() && window.ped_genComment){
+    window.ped_genComment();
+  }
 }
 
 document.getElementById('resetBtn').addEventListener('click', () => {
@@ -2602,16 +2653,6 @@ function runPedigreeAnalysis() {
     window.ped_setData(_singleParsed.data||{}, _singleParsed.horse||'', depth, thresh);
     window.ped_buildGrid();
     window.ped_analyze();
-    // デバッグ：データ件数を表示
-    var dbgNote=document.getElementById('pedLinkedNote');
-    var dataCount = _singleParsed.data ? Object.keys(_singleParsed.data).length : 0;
-    var pt = document.getElementById('pedTable');
-    var tableLen = pt ? pt.innerHTML.length : -1;
-    var cells = pt ? pt.querySelectorAll('input.cell') : [];
-    var filledCells = 0;
-    for(var ci=0; ci<cells.length; ci++){ if(cells[ci].value && cells[ci].value.trim()) filledCells++; }
-    var firstVal = cells.length>0 ? (cells[0].value||'(空)') : '(セルなし)';
-    if(dbgNote){ dbgNote.style.display='block'; dbgNote.textContent='データ'+dataCount+'件 / 表'+tableLen+'字 / セル'+cells.length+'個中'+filledCells+'個に値 / 先頭="'+firstVal+'"'; }
     var rp=document.getElementById('resultPanel'); if(rp) rp.style.display='';
     var bp=document.getElementById('blogPanel');   if(bp) bp.style.display='';
     var ph=document.getElementById('ped-result-header'); if(ph) ph.style.display='';
@@ -2619,6 +2660,32 @@ function runPedigreeAnalysis() {
     if(window._catalogPageText && window.ped_applyCatalogText){
       window.ped_applyCatalogText(window._catalogPageText.lines, window._catalogPageText.rlines);
     }
+    // ① 馬体欄・生年月日・性別を馬体診断の入力で上書き
+    (function(){
+      var h = document.getElementById('horseHeight').value;
+      var ch = document.getElementById('horseWaist').value;
+      var ca = document.getElementById('horseLeg').value;
+      var wt = document.getElementById('horseWeight').value;
+      var parts = [];
+      parts.push('体高' + (h||'---.-'));
+      parts.push('胸囲' + (ch||'---.-'));
+      parts.push('管囲' + (ca||'--.-'));
+      parts.push('体重' + (wt||'---'));
+      var bm = document.getElementById('b_measure');
+      if(bm) bm.value = parts.join(',');
+      // 生年月日（2025/4/15 → 2025.4.15 形式に変換）
+      var birth = document.getElementById('horseBirth').value.trim();
+      if(birth){
+        var bb = document.getElementById('b_birth');
+        if(bb) bb.value = birth.replace(/[\/\-]/g, '.');
+      }
+      // 性別
+      var sex = document.getElementById('horseSex').value.trim();
+      if(sex){
+        var bs = document.getElementById('b_sex');
+        if(bs) bs.value = sex;
+      }
+    })();
     // ④ コメント自動生成
     var cp=document.getElementById('commentPanel'); if(cp) cp.style.display='';
     if(window.ped_genComment) window.ped_genComment();
