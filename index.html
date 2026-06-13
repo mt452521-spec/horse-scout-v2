@@ -193,7 +193,17 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 
 /* 総評 */
 .comment-box { background: #1c1e22; border-radius: 8px; padding: 1.1rem 1.25rem; border: 1px solid #252320; font-size: 13px; line-height: 1.85; color: #b0a898; }
-
+.injury-box { background: #1c1a18; border-radius: 8px; padding: 1.1rem 1.25rem; border: 1px solid #2a2420; font-size: 13px; line-height: 1.7; color: #b0a898; }
+.injury-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.injury-level { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; padding: 3px 12px; border-radius: 20px; }
+.injury-level.low  { background: #0e1410; color: #4caa84; border: 1px solid #2a4030; }
+.injury-level.mid  { background: #1a1608; color: #c9a84c; border: 1px solid #403510; }
+.injury-level.high { background: #180e0e; color: #c97a7a; border: 1px solid #4a2020; }
+.injury-bar-bg { flex: 1; height: 4px; background: #252320; border-radius: 2px; }
+.injury-bar-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+.injury-factors { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.injury-factor { font-size: 11px; padding: 3px 9px; border-radius: 4px; background: #252018; color: #c9a06c; border: 1px solid #3a3020; }
+.injury-comment { font-size: 12px; color: #9a9088; line-height: 1.7; margin-top: 8px; }
 .reset-btn { background: transparent; border: 1px solid #302e28; color: #706860; padding: 7px 18px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; margin-top: 1rem; transition: border-color 0.2s, color 0.2s; }
 .reset-btn:hover { border-color: #c9a84c; color: #c9a84c; }
 
@@ -549,6 +559,12 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     <!-- 適性タグ -->
     <div class="card-label" style="margin-top:1.25rem;">適性予測</div>
     <div class="apt-row" id="aptRow"></div>
+
+    <!-- 故障懸念 -->
+    <div id="injurySection" style="display:none;">
+      <div class="card-label" style="margin-top:1.25rem;">故障懸念（前肢）<span style="font-size:9px;color:#4a4440;margin-left:8px;font-weight:400;">参考：シロー氏 馬体データ分析（2381頭）</span></div>
+      <div class="injury-box" id="injuryBox"></div>
+    </div>
 
     <!-- 総評 -->
     <div class="card-label" style="margin-top:1.25rem;">総評</div>
@@ -1430,6 +1446,23 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
         L.push('【適性】'+[a.best_route, a.distance, a.surface, a.maturity].filter(Boolean).join('／'));
         L.push('');
       }
+      // 故障懸念（前肢）
+      if(hs.injury_risk){
+        var ir = hs.injury_risk;
+        var lv = (ir.level||'').trim() || '低';
+        L.push('【故障懸念（前肢）】');
+        var head = '懸念度：'+lv;
+        if(typeof ir.score === 'number') head += '（'+ir.score+'/100）';
+        L.push(head);
+        if(ir.factors && ir.factors.length){
+          L.push('気になる点：'+ir.factors.join('、'));
+        }
+        if(ir.comment){
+          L.push(ir.comment);
+        }
+        L.push('※シロー氏の馬体データ分析（2381頭）を参考にした傾向です');
+        L.push('');
+      }
     }
 
     return L.join('\n').replace(/\n{3,}/g,'\n\n').replace(/\s+$/,'');
@@ -2187,14 +2220,34 @@ var SYSTEM_PROMPT = `あなたは日本競馬の馬体評価専門家です。
 【Mid — 3勝C】ニーズヘッグ・レシプロシティ・ユアフラッシュ
 【Lower — 未勝利〜1勝C】ニューダイアリーズ・エターナルディーバ・モーメントキャッチ
 
-## 統計的知見（シロー氏、2381頭データ）
+## 統計的知見（シロー氏「馬体のデータ分析」2381頭データに基づく）
+【競走成績にプラス】
 - 体高：高いほど成績良好（最も相関が高い項目）
-- 胸囲：大きいほど良い（牡馬178.5cm超は故障リスク上昇に注意）
+- 胸囲：大きいほど良い
+- 馬体重：重い層（480〜500kg想定）が勝ち上がり率高い
 - 前肢の長さ：短いほど良好（体高に対する比率）
 - 首の長さ：長いほど良好
+- 胸の深さ：牡馬は深いほど良い
+- トモ幅・ヨロ幅：厚いほど良好（ヨロのほうが明確）
 - 腰高/体高比：中間が最良（低すぎ/高すぎは避ける）
-- 後肢の繋ぎ：立ち繋ぎ傾向が成績良好（ただし前肢故障率も上昇、トレードオフ）
-- 膝の角度：弓脚傾向が強いと故障リスク高め
+- 生まれ月：早いほど良好
+- 肉付き：良いほど成績良好（ただし故障率もトレードオフで上昇）
+
+【前肢故障リスクが上がる特徴（injury_riskで評価）】
+- 胸囲が大きすぎる（牡馬178.5cm超で故障率20%超）
+- 体長が長い
+- 胸が浅い
+- 首が短い
+- 前肢が長い
+- 腰高/体高比が両端（高すぎ・低すぎ）
+- 球節（繋ぎ）が立っている/硬い＝柔軟性に欠ける（通説を裏付け、最も明確な脚元リスク）
+- 後肢の繋ぎが長い
+- 飛節が曲飛気味
+- 蹄が外に開いている（正面から見て外向き）
+- 肉付きが過剰に良い（成績とトレードオフ）
+- 5月生まれ
+※膝の角度や前肢繋ぎ角度・管囲は、故障率との明確な相関は出ていない（過度に重視しない）
+※「繋ぎが長いほど故障」という通説はデータ上支持されなかった点に注意
 
 ## 出力形式
 JSONのみ。余分なテキスト不要。
@@ -2220,6 +2273,12 @@ JSONのみ。余分なテキスト不要。
     "distance":   "<距離適性>",
     "surface":    "<芝|ダート|兼用>",
     "maturity":   "<早熟|晩成|普通>"
+  },
+  "injury_risk": {
+    "level": "<低|中|高>",
+    "score": <0-100の故障懸念スコア。高いほど前肢故障リスクが高い>,
+    "factors": ["<懸念材料を簡潔に。例：胸が浅い>", "<該当する特徴のみ。なければ空配列>"],
+    "comment": "<60字程度。前肢故障リスクの観点での所見。シロー氏の統計的知見を踏まえつつ、確定診断ではなく傾向として述べる>"
   },
   "overall_comment": "<200字程度の総評（測尺データが渡されている場合はその観点も含めてコメント）>"
 }`;
@@ -2545,6 +2604,30 @@ function renderResult(name, r, ms) {
     <div class="apt-tag" style="border-color:#888;color:#aaa;background:#1a1a1a">${a.distance}</div>
     <div class="apt-tag" style="border-color:${surfColor};color:${surfColor};background:#0e1410">${a.surface}</div>
     <div class="apt-tag" style="border-color:#c97a4c;color:#c97a4c;background:#160e08">${a.maturity}</div>`;
+
+  // 故障懸念（injury_risk）
+  var injSec = document.getElementById('injurySection');
+  if (r.injury_risk && injSec) {
+    var ir = r.injury_risk;
+    var lv = (ir.level || '').trim();
+    var lvClass = lv === '高' ? 'high' : lv === '中' ? 'mid' : 'low';
+    var lvColor = lv === '高' ? '#c97a7a' : lv === '中' ? '#c9a84c' : '#4caa84';
+    var sc = typeof ir.score === 'number' ? ir.score : (lv === '高' ? 75 : lv === '中' ? 45 : 20);
+    var factorsHtml = (ir.factors && ir.factors.length)
+      ? '<div class="injury-factors">' + ir.factors.map(function(f){ return '<span class="injury-factor">' + f + '</span>'; }).join('') + '</div>'
+      : '';
+    document.getElementById('injuryBox').innerHTML =
+      '<div class="injury-head">' +
+        '<span class="injury-level ' + lvClass + '">懸念度：' + (lv || '低') + '</span>' +
+        '<div class="injury-bar-bg"><div class="injury-bar-fill" style="width:' + sc + '%;background:' + lvColor + '"></div></div>' +
+        '<span style="font-size:12px;color:' + lvColor + ';font-weight:500;">' + sc + '</span>' +
+      '</div>' +
+      factorsHtml +
+      '<div class="injury-comment">' + (ir.comment || '') + '</div>';
+    injSec.style.display = 'block';
+  } else if (injSec) {
+    injSec.style.display = 'none';
+  }
 
   document.getElementById('commentBox').textContent = r.overall_comment;
   document.getElementById('resultCard').style.display = 'block';
