@@ -595,7 +595,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     <div id="slSuggest" style="display:none;margin-top:6px;background:#fffdf8;border:1px solid var(--line);border-radius:6px;max-height:190px;overflow:auto;"></div>
     <div id="slResult" style="display:none;margin-top:10px;"></div>
     <div id="slLegend" style="display:none;margin-top:10px;padding:10px;background:#fffdf8;border:1px solid var(--line);border-radius:6px;"></div>
-    <div class="hint">馬名を入れると父系統を判定します。血統表のセルにも同じ系統色が付くので、どの血がどの系統かひと目で追えます。<br>国旗は<strong>活躍国</strong>（主要な競走実績を挙げた国）です。活躍国が不明な馬は<span style="opacity:.5">薄い旗</span>で<strong>生産国</strong>を表示します。</div>
+    <div class="hint">馬名を入れると父系統を判定します。血統表のセルにも同じ系統色が付くので、どの血がどの系統かひと目で追えます。<br><strong>繁殖牝馬（母の位置）は常に白のまま</strong>です（この本は種牡馬専用の父系図のため）。父の位置は、その馬自身が本に無くても<strong>父方向を遡り</strong>、判明した祖先の系統色を<span style="border-bottom:2px dashed #888">破線</span>で表示します（本人の色ではないという意味です）。<br>国旗は<strong>活躍国</strong>（主要な競走実績を挙げた国）です。活躍国が不明な馬は<span style="opacity:.5">薄い旗</span>で<strong>生産国</strong>を表示します。</div>
   </section>
 
   <!-- 血統表表示エリア（pedTableはここに移動済み） -->
@@ -1324,21 +1324,24 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
           var c = nm && cmap[nm] ? cmap[nm] : null;
           var fs = g2<=2 ? 12 : (g2<=3 ? 11 : 10);
           var sup = c ? '<sup style="font-size:8px;opacity:.85;font-weight:700"> '+g2+'</sup>' : '';
-          // ===== 塗りつぶし＝父系統 =====
-          var slInfo = (nm && window.sl_lookup) ? window.sl_lookup(nm) : null;
+          // ===== 塗りつぶし＝父系統。ただし牝馬の位置(path末尾'd')は白のまま =====
+          var isSireSlot = path && path.charAt(path.length-1) === 's';
+          var slInfo = (isSireSlot && nm && window.sl_lookupByPath) ? window.sl_lookupByPath(path) : null;
           var slCol = slInfo ? slInfo.color : null;
-          var bg = slCol ? hexToRgba(slCol, 0.20) : '#fff';
+          var bg = slCol ? hexToRgba(slCol, slInfo.inherited ? 0.12 : 0.20) : '#fff';
           var fg = '#222';
           var fw = c ? '700':'400';
-          // ===== 枠線＝クロスの種類 =====
+          // ===== 枠線＝クロスの種類（血統セル自体は継承の場合のみ細い破線を追加区別）=====
           var catcol = c ? CAT_COLORS[c.cat] : null;
-          var border = catcol ? ('2.5px solid '+catcol.fg) : '1px solid #ccc';
+          var border = catcol ? ('2.5px solid '+catcol.fg)
+                     : (slInfo && slInfo.inherited ? ('1px dashed '+slCol) : '1px solid #ccc');
           var tip = [];
-          if(slInfo) tip.push(slInfo.label + (slInfo.ctry ? '（'+slInfo.ctry+(slInfo.ctryKind?'・'+slInfo.ctryKind:'')+'）' : ''));
+          if(slInfo) tip.push(slInfo.label + (slInfo.ctry && !slInfo.inherited ? '（'+slInfo.ctry+(slInfo.ctryKind?'・'+slInfo.ctryKind:'')+'）' : ''));
+          if(slInfo && slInfo.inherited) tip.push(slInfo.viaGen+'代父'+slInfo.viaName+'の系統色');
           if(c) tip.push(CAT_LABELS[c.cat]);
           var slTitle = tip.length ? (' title="'+esc(tip.join(' / '))+'"') : '';
-          // 国旗
-          var ctryTag = (slInfo && slInfo.flag) ? ('<span style="margin-left:3px;line-height:0;">'+flagImgBlog(slInfo)+'</span>') : '';
+          // 国旗（継承色のときは自分の国ではないので出さない）
+          var ctryTag = (slInfo && slInfo.flag && !slInfo.inherited) ? ('<span style="margin-left:3px;line-height:0;">'+flagImgBlog(slInfo)+'</span>') : '';
           t += '<td rowspan="'+span+'"'+slTitle+' style="border:'+border+';padding:2px 4px;background:'+bg+';color:'+fg+';font-weight:'+fw+';font-size:'+fs+'px;vertical-align:middle;word-break:break-word">'+esc(nm)+ctryTag+sup+'</td>';
         }
       }
@@ -3029,6 +3032,39 @@ function runPedigreeAnalysis() {
     return chain;
   }
 
+  // ★ セル自身の名前で系統が見つからない場合、そのセルの「父」（同パス配下、深い代）を
+  //   1つずつ遡って探す。多くは牝馬（この本には牝馬が載っていないため単独では絶対に
+  //   ヒットしない）なので、実質「母の父・母の父の父…」を遡って種牡馬を見つける処理になる。
+  //   見つかった祖先の色を借りて、"継承"であることも一緒に返す。
+  function lookupByPath(path, maxUp){
+    if(!path) return null;
+    var getName = window.ped_getName;
+    if(!getName) return lookup(''); // フォールバック（通常は起きない）
+    var ownName = getName(path);
+    if(ownName){
+      var own = lookup(ownName);
+      if(own) return own;
+    }
+    // 父方向へ遡る（このセル自身の「父」に相当する、より深い代の同パス+'s'）
+    var p = path;
+    var upLimit = maxUp || 6;
+    for(var i=0; i<upLimit; i++){
+      p = p + 's';
+      var nm = getName(p);
+      if(!nm) break;               // これ以上データがない
+      var r = lookup(nm);
+      if(r){
+        return {
+          label:r.label, color:r.color, disp:ownName || nm, count:r.count,
+          group:r.group, groupColor:r.groupColor, ctry:r.ctry, ctryKind:r.ctryKind, flag:r.flag,
+          inherited:true, viaName:nm, viaGen:(p.length - path.length)
+        };
+      }
+    }
+    return null;
+  }
+  window.sl_lookupByPath = lookupByPath;
+
   // ---- 検索UI ----
   var suggestTimer = null;
   function renderSuggest(q){
@@ -3174,11 +3210,16 @@ function runPedigreeAnalysis() {
     var cells = pt.querySelectorAll('input.cell');
     Array.prototype.forEach.call(cells, function(inp){
       var td = inp.parentNode;
-      var r = inp.value ? lookup(inp.value) : null;
+      var path = inp.getAttribute('data-path');
+      // ★パスの末尾が'd'＝構造的に必ず牝馬（繁殖牝馬）の位置。この本は種牡馬専用の
+      //   父系図なので、牝馬の位置は検索自体を行わず常に白のままにする。
+      var isSireSlot = path && path.charAt(path.length-1) === 's';
+      var own = (isSireSlot && inp.value) ? lookup(inp.value) : null;
+      var r = isSireSlot ? (own || (inp.value ? lookupByPath(path) : null)) : null;
 
-      // --- 国表記バッジ（inputの右端に重ねる） ---
+      // --- 国表記バッジ（inputの右端に重ねる）。国旗は「自分自身の国」のみ表示、継承色では出さない ---
       var badge = td.querySelector('.sl-ctry');
-      if(showC && r && r.flag){
+      if(showC && own && own.flag){
         if(!badge){
           badge = document.createElement('span');
           badge.className = 'sl-ctry';
@@ -3186,7 +3227,7 @@ function runPedigreeAnalysis() {
             'line-height:0;pointer-events:none;white-space:nowrap;';
           td.appendChild(badge);
         }
-        badge.innerHTML = flagImg(r, 9);
+        badge.innerHTML = flagImg(own, 9);
         td.style.position = 'relative';
         inp.style.paddingRight = '19px';
       } else if(badge){
@@ -3201,11 +3242,12 @@ function runPedigreeAnalysis() {
         else td.title = r.label + (r.ctry ? '（'+r.ctry+(r.ctryKind?'・'+r.ctryKind:'')+'）' : '');
         return;
       }
-      // 淡い系統色（背景）＋左端に濃い帯
-      td.style.background = hexA(r.color, 0.13);
-      td.style.borderLeft = '3px solid '+r.color;
+      // 淡い系統色（背景）＋左端に帯。継承（牝馬などが自身では見つからず父方から借りた色）は破線で区別
+      td.style.background = hexA(r.color, r.inherited ? 0.09 : 0.13);
+      td.style.borderLeft = (r.inherited ? '3px dashed ' : '3px solid ') + r.color;
       inp.style.background = 'transparent';
-      td.title = r.label + (r.ctry ? '（'+r.ctry+(r.ctryKind?'・'+r.ctryKind:'')+'）' : '');
+      td.title = r.label + (r.ctry ? '（'+r.ctry+(r.ctryKind?'・'+r.ctryKind:'')+'）' : '') +
+                 (r.inherited ? '\n※本人はこの本に記載なし。'+r.viaGen+'代父の'+r.viaName+'の系統色を表示' : '');
     });
   }
   function hexA(hex, a){
