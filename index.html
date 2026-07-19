@@ -602,6 +602,33 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   <div class="gridwrap" style="overflow-x:auto;margin-bottom:1rem;background:#fffdf8;border:1px solid #cdbfa6;border-radius:8px;padding:4px;">
     <table class="ped" id="pedTable" style="border-collapse:collapse;width:100%;background:#fffdf8;color:#23201b;"></table>
   </div>
+<section class="panel" id="simSection" style="display:none">
+    <h2>血の構成が近い活躍馬</h2>
+    <div style="font-size:12px;color:var(--muted);margin:-6px 0 10px;">血量ベクトルのコサイン類似度で、DB内の活躍馬から近い順に表示します。</div>
+    <div id="simControls" style="display:none;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;">
+      <div class="field">
+        <label>比較軸</label>
+        <select id="simAxis">
+          <option value="full">総合（父＋母の血量）</option>
+          <option value="mother">母方のみ（牝系）</option>
+          <option value="father">父方のみ</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>表示数</label>
+        <select id="simTop">
+          <option value="5" selected>上位5頭</option>
+          <option value="10">上位10頭</option>
+          <option value="20">上位20頭</option>
+        </select>
+      </div>
+    </div>
+    <div id="simBox">読み込み中…</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.7;background:#fffdf8;border:1px solid var(--line);border-radius:6px;padding:8px 11px;">
+      ⚠ このDBは<strong>活躍馬（重賞勝ち or 本賞金1億円以上）だけ</strong>を収録しています。どんな馬を調べても近い活躍馬は必ず返るので、
+      <strong>「似た活躍馬がいる＝走る」という意味ではありません</strong>。血の構成が近いという事実の提示であり、判断は人が行うものです。
+    </div>
+  </section>
 <section class="panel" id="resultPanel" style="display:none">
     <h2>判定結果</h2>
     <div class="res-grid">
@@ -2252,6 +2279,21 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   // === グローバル公開 ===
   window.ped_analyze    = analyze;
   window.ped_getName    = name;          // 父系統サーチから血統表のセル名を参照するため
+  // 類似活躍馬検索用：現在の血統データを {name, father:{血名:[世代…]}, mother:{…}} で返す。
+  // 世代＝pathの長さ（父/母=1代）。8代目以降は9代に丸める（HANDOFF §4-1 と同じ規則）。
+  window.ped_bloodProfile = function(){
+    var father = {}, mother = {};
+    for(var p in data){
+      var nm = name(p);
+      if(!nm || nm==='(不明)') continue;
+      var gen = p.length;
+      if(gen > 9) gen = 9;               // 深いものは9代に丸める
+      var side = (p.charAt(0)==='s') ? father : mother;
+      (side[nm] = side[nm] || []).push(gen);
+    }
+    return { name:(($('ped-horseName')&&$('ped-horseName').value)||'').trim()||'診断中の馬',
+             father:father, mother:mother };
+  };
   window.ped_buildGrid  = function(){
     buildGrid();
     // 血統表を作り直したら系統色を塗り直す
@@ -2967,6 +3009,15 @@ function runPedigreeAnalysis() {
     var bp2=document.getElementById('blogPanel');   if(bp2) bp2.style.display='';
     var ph2=document.getElementById('ped-result-header'); if(ph2) ph2.style.display='';
   }
+  // 血の構成が近い活躍馬（血統データがある時だけ。DBは初回に遅延読込）
+  try {
+    if(window.sim_show && window.ped_bloodProfile){
+      var prof = window.ped_bloodProfile();
+      var hasBlood = prof && (Object.keys(prof.father).length + Object.keys(prof.mother).length) > 0;
+      if(hasBlood) window.sim_show(prof);
+      else if(window.sim_hide) window.sim_hide();
+    }
+  } catch(e){ console.warn('similar horses error:', e); }
 }
 
 </script>
@@ -3289,6 +3340,190 @@ function runPedigreeAnalysis() {
   window.sl_flagImg = flagImg;
   window.sl_lineOf = function(nm){ var r = lookup(nm); return r ? r.label : null; };
   window.sl_colorOf = function(nm){ var r = lookup(nm); return r ? r.color : null; };
+})();
+</script>
+
+
+<script>
+// ===== 類似活躍馬エンジン（HANDOFF準拠：血量ベクトルのコサイン類似度）=====
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var DB_URL = "stars_db.json";
+  var DB = null, BL = null, CAL = null, HORSES = null;
+  var loading = null, loadFailed = false;
+
+  // 血量 = Σ 100 / 2^世代（HANDOFF §4-1）
+  function bq(gens){ var s=0; for(var i=0;i<gens.length;i++){ s += 100/Math.pow(2, gens[i]); } return s; }
+
+  // {血名:[世代…]} を {index: 血量} のベクトルに（DBは血名をindex化しているので突合する）
+  function vecFromProfile(profile, side){
+    var v = {};
+    function add(dict){
+      for(var nm in dict){
+        var idx = nameToIdx(nm);
+        if(idx < 0) continue;               // DBに無い血は無視（共通項にならない）
+        v[idx] = (v[idx]||0) + bq(dict[nm]);
+      }
+    }
+    if(side==='mother') add(profile.mother);
+    else if(side==='father') add(profile.father);
+    else { add(profile.father); add(profile.mother); }
+    return v;
+  }
+  // DB側の馬（index構造）からベクトル
+  function vecFromHorse(h, side){
+    var v = {};
+    function add(dict){ for(var i in dict){ v[i] = (v[i]||0) + bq(dict[i]); } }
+    if(side==='mother') add(h.mother);
+    else if(side==='father') add(h.father);
+    else { add(h.father); add(h.mother); }
+    return v;
+  }
+  var _nameIdxCache = null;
+  function nameToIdx(nm){
+    if(!_nameIdxCache){
+      _nameIdxCache = {};
+      for(var i=0;i<BL.length;i++){ _nameIdxCache[BL[i]] = i; }
+    }
+    return (nm in _nameIdxCache) ? _nameIdxCache[nm] : -1;
+  }
+  function cosine(a,b){
+    var dot=0, na=0, nb=0, k;
+    for(k in a){ na += a[k]*a[k]; if(b[k]) dot += a[k]*b[k]; }
+    for(k in b){ nb += b[k]*b[k]; }
+    return (na && nb) ? dot/Math.sqrt(na*nb) : 0;
+  }
+  // 較正：ランダム2頭分布での「上位x%」（HANDOFF §4-3）
+  function topPct(sim, axis){
+    if(!CAL) return null;
+    var t = CAL[axis] || CAL.mother;
+    if(!t) return null;
+    var lo=0, hi=t.length;
+    while(lo<hi){ var m=(lo+hi)>>1; if(t[m]<sim) lo=m+1; else hi=m; }
+    return Math.max(0.01, 100 - lo*(100/(t.length-1)));
+  }
+  function fmtPrize(man){
+    if(man>=10000) return (man/10000).toFixed(man>=100000?0:1).replace(/\.0$/,'')+'億';
+    return (man||0).toLocaleString()+'万';
+  }
+
+  function loadDB(){
+    if(DB) return Promise.resolve(DB);
+    if(loading) return loading;
+    loading = fetch(DB_URL).then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }).then(function(db){
+      DB = db; BL = db.bloods; CAL = db.calibration; _nameIdxCache = null;
+      HORSES = db.horses.map(function(h){
+        var o = { name:h.n, stallion:h.s, sex:h.x, year:h.y, wins:h.w, starts:h.t,
+                  prize:h.p, price:h.pr, dam:h.d, grade:h.gr||'',
+                  father:{}, mother:{} };
+        h.f.forEach(function(pair){ o.father[pair[0]] = pair[1]; });
+        h.m.forEach(function(pair){ o.mother[pair[0]] = pair[1]; });
+        return o;
+      });
+      HORSES.forEach(function(h){
+        h.vec = { mother:vecFromHorse(h,'mother'), full:vecFromHorse(h,'full'), father:vecFromHorse(h,'father') };
+      });
+      // DBの中身で既定軸を決める（父混在→総合、単一→母方）
+      var st = db.meta.stallions || [];
+      if($('simAxis')) $('simAxis').value = (st.length>1) ? 'full' : 'mother';
+      return DB;
+    }).catch(function(e){
+      loadFailed = true;
+      throw e;
+    });
+    return loading;
+  }
+
+  function classifySim(pct){
+    // 上位x%を色ラベルに
+    if(pct==null) return {t:'', c:'#706860'};
+    if(pct<=0.5) return {t:'上位'+pct.toFixed(2)+'%', c:'#c01f2e'};
+    if(pct<=1)   return {t:'上位'+pct.toFixed(2)+'%', c:'#c2620a'};
+    if(pct<=5)   return {t:'上位'+pct.toFixed(1)+'%', c:'#0a7a6e'};
+    return {t:'上位'+pct.toFixed(0)+'%', c:'#706860'};
+  }
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function render(profile){
+    var box = $('simBox');
+    if(!box) return;
+    var axis = ($('simAxis') && $('simAxis').value) || 'full';
+    var topN = +(($('simTop') && $('simTop').value) || 5);
+    var tv = vecFromProfile(profile, axis);
+    // 有効なベクトルがあるか（DBと共通の血が1つも無いと全部0）
+    var hasVec = false; for(var k in tv){ if(tv[k]>0){ hasVec=true; break; } }
+    if(!hasVec){
+      box.innerHTML = '<div style="color:var(--muted);font-size:13px;">この軸ではDB内の血と重なりがなく、比較できませんでした。</div>';
+      return;
+    }
+    var ranked = HORSES
+      .filter(function(h){ return h.name !== profile.name; })
+      .map(function(h){ return { h:h, sim:cosine(tv, h.vec[axis]) }; })
+      .sort(function(a,b){ return b.sim - a.sim; })
+      .slice(0, topN);
+
+    var rows = ranked.map(function(r, i){
+      var h = r.h;
+      var pct = topPct(r.sim, axis);
+      var cl = classifySim(pct);
+      var winInfo = h.grade ? esc(h.grade) : (h.wins!=null ? (h.wins+'勝') : '');
+      var sub = [];
+      if(h.stallion) sub.push('父'+esc(h.stallion));
+      if(h.dam) sub.push('母'+esc(h.dam));
+      if(h.year) sub.push(h.year+'年');
+      if(h.prize) sub.push(fmtPrize(h.prize));
+      return '<div style="display:flex;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px dotted var(--line);">'+
+        '<span style="font-size:15px;font-weight:700;color:var(--muted);width:1.4em;flex-shrink:0;">'+(i+1)+'</span>'+
+        '<div style="flex:1;min-width:0;">'+
+          '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">'+
+            '<span style="font-size:14px;font-weight:700;">'+esc(h.name)+'</span>'+
+            (winInfo?'<span style="font-size:11px;color:var(--accent);">'+winInfo+'</span>':'')+
+          '</div>'+
+          '<div style="font-size:11px;color:var(--muted);margin-top:1px;">'+sub.join('　')+'</div>'+
+        '</div>'+
+        '<div style="text-align:right;flex-shrink:0;">'+
+          '<div style="font-size:15px;font-weight:700;font-family:\'Shippori Mincho B1\',serif;">'+(r.sim*100).toFixed(1)+'%</div>'+
+          (cl.t?'<div style="font-size:10px;color:'+cl.c+';font-weight:700;">'+cl.t+'</div>':'')+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+    box.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">'+
+        esc(profile.name)+' と血の構成が近い活躍馬（'+
+        (axis==='full'?'総合':axis==='mother'?'母方':'父方')+'軸）</div>'+ rows;
+  }
+
+  var _lastProfile = null;
+  function show(profile){
+    _lastProfile = profile;
+    var sec = $('simSection');
+    if(sec) sec.style.display = '';
+    var box = $('simBox');
+    if(box) box.innerHTML = '<div style="color:var(--muted);font-size:13px;">活躍馬DBを読み込み中…（初回のみ数秒）</div>';
+    loadDB().then(function(){
+      var ctl = $('simControls'); if(ctl) ctl.style.display = 'flex';
+      render(profile);
+    }).catch(function(){
+      if(box) box.innerHTML = '<div style="color:var(--accent);font-size:13px;">'+
+        '活躍馬DB（stars_db.json）を読み込めませんでした。<br>'+
+        'HTMLと同じ場所に stars_db.json を置き、GitHub Pages等のサーバ経由で開いてください'+
+        '（ローカルのファイル直開きでは読めません）。</div>';
+    });
+  }
+
+  // 軸・表示数を変えたら再描画
+  ['simAxis','simTop'].forEach(function(id){
+    var el = $(id);
+    if(el) el.addEventListener('change', function(){ if(_lastProfile) render(_lastProfile); });
+  });
+
+  // 外部公開：診断実行時に呼ぶ
+  window.sim_show = show;
+  window.sim_hide = function(){ var s=$('simSection'); if(s) s.style.display='none'; };
 })();
 </script>
 
