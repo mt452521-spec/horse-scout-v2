@@ -1460,41 +1460,47 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     var bv=function(id){ return $(id)?($(id).value||'').trim():''; };
     var hasBasic = $('b_include') && $('b_include').checked && $('basicGrid') && $('basicGrid').style.display!=='none';
 
-    // ===== ヘッダー（基礎情報の前半） =====
+    // ===== ① 自己紹介あいさつ =====
+    L.push('あっしーさんです');
+    L.push('');
+    // ===== ② 注意文（AI併用の断り書き）=====
+    L.push('当ブログ記事は、一部AIにて作成された記事を使用しております');
+    L.push('特に馬体診断については私自身も精度がわからない状況でございますので、読み物としてご覧いただけますと幸いです');
+    L.push('');
+    L.push('※有識者の皆さまへ');
+    L.push('AI育成中につき、ニアリー判定など、誤りがある場合がございます');
+    L.push('お手数おかけしますが、発見された際にはご指摘いただけますと幸甚です');
+    L.push('');
+
+    // ===== ③ 今回の検討馬紹介 =====
+    var nm = hasBasic ? bv('b_name') : '';
+    L.push('はい、ということで！');
+    L.push('今回は、'+(nm||'本馬')+'について書いていきます');
+    L.push('どうぞ、よろしくお願いします！');
+    L.push('');
+
+    // ===== ④ 基礎情報（馬の素性）=====
     if(hasBasic){
-      var nm=bv('b_name'), sire=bv('b_sire'), ds=bv('b_damsire'), dam=bv('b_dam');
-      // ===== あいさつ文 =====
-      L.push('どうも、あっしーさんです');
-      L.push('今回は、'+(nm||'本馬')+'について書いていきます');
-      L.push('どうぞ、よろしくお願いします！');
-      L.push('');
-      // 1行目：馬名（色は blog HTML 側で付与。テキストは素のまま）
+      var sire=bv('b_sire'), ds=bv('b_damsire'), dam=bv('b_dam');
       if(nm) L.push(nm);
-      // 2行目：　父●●
       if(sire) L.push('　父'+sire);
-      // 3行目：　母父■■（母父が無ければ母名でフォロー）
       if(ds) L.push('　母父'+ds);
       else if(dam) L.push('　母'+dam);
-      // 4行目：所属・厩舎名　募集総額　生まれ(m/dd生まれ)
       var line4=[];
       var shozoku=[];
       if(bv('b_base')) shozoku.push(bv('b_base'));
       if(bv('b_stable')) shozoku.push(bv('b_stable'));
       if(shozoku.length) line4.push(shozoku.join('・'));
       if(bv('b_total')) line4.push(bv('b_total'));
-      // 生まれ：2024.4.30 → 4/30生まれ
       var bm=bv('b_birth').match(/^\d{4}\.(\d{1,2})\.(\d{1,2})/);
       if(bm) line4.push(bm[1]+'/'+bm[2]+'生まれ');
       if(line4.length) L.push(line4.join('　'));
-      // 5行目：生産地
       if(bv('b_origin')) L.push(bv('b_origin'));
-      // 6行目：馬体
       if(bv('b_measure')) L.push(bv('b_measure'));
       L.push('');
-
     }
 
-    // ===== 【基礎情報】＝クロス要約 ＋ 母○歳時の△番仔 =====
+    // 【基礎情報】＝クロス要約 ＋ 母○歳時の△番仔
     L.push('【基礎情報】');
     var inner5 = R.direct.filter(function(d){
       var gens = d.sireGens.concat(d.damGens);
@@ -1512,7 +1518,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     L.push(crossPhrase + damPart);
     L.push('');
 
-    // ===== 【兄弟】＝一言の前に配置 =====
+    // ===== ⑤ 兄弟 =====
     if(hasBasic){
       var sibs = bv('b_sibs');
       if(sibs){
@@ -1522,10 +1528,9 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
       }
     }
 
-    // ===== 【5代血統表等から一言】＝複数文のクロス骨格コメント =====
+    // ===== ⑥ AIクロス分析（【5代血統表等から一言】）=====
     L.push('【5代血統表等から一言】');
     var sent = [];
-    // 主クロス：血量6.25%以上（5×5相当以上）を濃い順に最大5つ言及。代数は全出現を表記。
     var strong = R.direct.filter(function(d){
       return (d.sireGens.length + d.damGens.length) >= 2 && d.blood >= 6.25;
     }).slice(0,5);
@@ -1537,23 +1542,19 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     } else {
       sent.push('5代以内に目立つクロスはなく、アウトブリード寄りの構成ですね');
     }
-    // 全兄弟クロス
     if(R.full.length){
       var f=R.full[0];
       sent.push('なにより'+f.a+'＝'+f.b+'の全きょうだいクロス'+f.text+'を持つのが大きく、通常のクロス以上の好配合とされる血の集約です');
     }
-    // 3/4同血
     if(R.three.length){
       var t3=R.three[0];
       sent.push(t3.a+'≒'+t3.b+'の3/4同血クロス'+t3.text+'も効いています');
     }
-    // ニアリー（最大2本／血の濃い＝近い順）
     if(R.near.length){
       R.near.slice(0,2).forEach(function(n){
         sent.push(n.a+'≒'+n.b+' '+n.text+(n.sideLabel?'('+n.sideLabel+')':'')+'（同血度'+Math.round(n.score*100)+'%）のニアリークロスも、通常のクロスに近い緊張感を添えています');
       });
     }
-    // 1/4異系
     if(R.quarter.length){
       var q=R.quarter[0];
       sent.push(q.block+'系だけが非'+q.blood+'となり、いわゆる緊張と緩和の効いた構成です');
@@ -1561,16 +1562,31 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     L.push(sent.join('。')+'。');
     L.push('');
 
-    // ===== ④ 馬体診断の短評＋点数表（5代血統表等から一言の後）=====
+    // ===== ⑦ AI類似血統分析（プレースホルダ。生成後に非同期で差し込む）=====
+    L.push('【血の構成が近い活躍馬（AI）】');
+    L.push('%%SIM_PLACEHOLDER%%');
+    L.push('');
+
+    // ===== ⑧ あっしーさんの血統分析（追加）＝執筆スペース =====
+    L.push('ーーーーーhere we goーーーーー');
+    L.push('AIさんはここまで、ここからは私あっしーさんのコメントになります');
+    L.push('');
+    L.push('（ここに配合の見解を書く）');
+    L.push('');
+    L.push('ーーーーーここまでーーーーー');
+    L.push('');
+
+    // ===== ⑨ AI馬体診断 =====
     var hs = window._lastHsResult;
     if(hs){
-      // 馬体短評
+      L.push('ここからは、当たるも八卦当たらぬも八卦のAI馬体診断です');
+      L.push('私はまだ半分も信じておりませんが、興味のある方はご笑覧ください');
+      L.push('');
       if(hs.overall_comment){
         L.push('【馬体診断から一言】');
         L.push(hs.overall_comment);
         L.push('');
       }
-      // 点数表（ブログ用）
       L.push('【適性スコア】');
       var routeLabels = { turf_short:'芝短〜マイル', turf_long:'芝中〜長距離', dirt_short:'ダ短〜マイル', dirt_long:'ダ中〜長距離' };
       if(hs.routes){
@@ -1584,7 +1600,6 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
       }
       L.push('　総合：'+hs.overall_score+'点 / 100');
       L.push('');
-      // 馬体評価（部位別）
       if(hs.body_eval){
         L.push('【馬体評価】');
         Object.keys(hs.body_eval).forEach(function(part){
@@ -1593,20 +1608,18 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
         });
         L.push('');
       }
-      // 適性タグ
       if(hs.aptitude){
         var a = hs.aptitude;
         L.push('【適性】'+[a.best_route, a.distance, a.surface, a.maturity].filter(Boolean).join('／'));
         L.push('');
       }
-      // 故障懸念（前肢）
       if(hs.injury_risk){
         var ir = hs.injury_risk;
         var lv = (ir.level||'').trim() || '低';
         L.push('【故障懸念（前肢）】');
-        var head = '懸念度：'+lv;
-        if(typeof ir.score === 'number') head += '（'+ir.score+'/100）';
-        L.push(head);
+        var head2 = '懸念度：'+lv;
+        if(typeof ir.score === 'number') head2 += '（'+ir.score+'/100）';
+        L.push(head2);
         if(ir.factors && ir.factors.length){
           L.push('気になる点：'+ir.factors.join('、'));
         }
@@ -1617,6 +1630,9 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
         L.push('');
       }
     }
+
+    L.push('本日も、どうもありがとうございました！');
+    L.push('明日以降も、どうぞよろしくお願いします！');
 
     return L.join('\n').replace(/\n{3,}/g,'\n\n').replace(/\s+$/,'');
   }
@@ -2270,6 +2286,23 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     currentComment = generateComment();
     $('commentArea').value = currentComment;
     refreshBlogWithComment();
+    // 類似血統分析（AI）のプレースホルダを、DB読込後に実テキストへ差し替え
+    if(currentComment.indexOf('%%SIM_PLACEHOLDER%%') >= 0 && window.sim_textTop && window.ped_bloodProfile){
+      var prof = window.ped_bloodProfile();
+      var hasBlood = prof && (Object.keys(prof.father).length + Object.keys(prof.mother).length) > 0;
+      var fill = function(txt){
+        var body = txt && txt.trim() ? txt
+          : 'DB内に血の重なりを持つ活躍馬が見当たりませんでした。';
+        // ユーザーが編集していなければ置換（編集済みなら壊さない）
+        if($('commentArea').value === currentComment){
+          currentComment = currentComment.replace('%%SIM_PLACEHOLDER%%', body);
+          $('commentArea').value = currentComment;
+          refreshBlogWithComment();
+        }
+      };
+      if(hasBlood){ Promise.resolve(window.sim_textTop(prof, 5)).then(fill).catch(function(){ fill(''); }); }
+      else { fill(''); }
+    }
   }
   $('genCommentBtn').addEventListener('click', doGenComment);
   $('reCommentBtn').addEventListener('click', doGenComment);
@@ -2281,18 +2314,20 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   window.ped_getName    = name;          // 父系統サーチから血統表のセル名を参照するため
   // 類似活躍馬検索用：現在の血統データを {name, father:{血名:[世代…]}, mother:{…}} で返す。
   // 世代＝pathの長さ（父/母=1代）。8代目以降は9代に丸める（HANDOFF §4-1 と同じ規則）。
+  // paths に各血名の全出現パスも持たせ、共有血の重複（祖先-子孫）除去に使う。
   window.ped_bloodProfile = function(){
-    var father = {}, mother = {};
+    var father = {}, mother = {}, paths = {};
     for(var p in data){
       var nm = name(p);
       if(!nm || nm==='(不明)') continue;
       var gen = p.length;
-      if(gen > 9) gen = 9;               // 深いものは9代に丸める
+      var genC = gen > 9 ? 9 : gen;
       var side = (p.charAt(0)==='s') ? father : mother;
-      (side[nm] = side[nm] || []).push(gen);
+      (side[nm] = side[nm] || []).push(genC);
+      (paths[nm] = paths[nm] || []).push(p);
     }
     return { name:(($('ped-horseName')&&$('ped-horseName').value)||'').trim()||'診断中の馬',
-             father:father, mother:mother };
+             father:father, mother:mother, paths:paths };
   };
   window.ped_buildGrid  = function(){
     buildGrid();
@@ -3448,6 +3483,58 @@ function runPedigreeAnalysis() {
   }
   function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+  // 2つの血量ベクトル間で「共有している血」を寄与の大きい順に返す。
+  // ★重複除去：ある共有血が別の共有血の子孫（対象馬の血統表で祖先-子孫関係）なら表示しない。
+  //   例）父キタサンブラックを共有→その中のブラックタイド/サンデーサイレンス等は隠す。
+  //   profile.paths（血名→出現パス配列）を使い、浅いパスの接頭辞になっている深いパスを除く。
+  function sharedBloods(tv, hv, topK, profile){
+    var shares = [];
+    for(var k in tv){
+      if(hv[k]){
+        var m = Math.min(tv[k], hv[k]);
+        if(m > 0.01) shares.push({ idx:+k, name:BL[+k]||('#'+k), share:m });
+      }
+    }
+    shares.sort(function(a,b){ return b.share - a.share; });
+
+    // 祖先-子孫の重複除去（profile.paths がある時のみ）
+    if(profile && profile.paths){
+      var kept = [];
+      var keptPaths = [];   // 既に採用した血の「最浅パス」集合
+      shares.forEach(function(s){
+        var ps = profile.paths[s.name] || [];
+        // この血の最浅（最短）パス
+        var shallow = null;
+        ps.forEach(function(pp){ if(shallow===null || pp.length < shallow.length) shallow = pp; });
+        if(shallow === null){ kept.push(s); return; }  // パス不明なら残す
+        // 既採用のどれかの子孫（＝既採用パスが自分の接頭辞）なら除外
+        var isDesc = keptPaths.some(function(kp){ return shallow.length > kp.length && shallow.indexOf(kp) === 0; });
+        if(!isDesc){
+          // 逆に、自分が既採用の祖先だった場合は、その子孫側を後追いで消す
+          keptPaths = keptPaths.filter(function(kp){ return !(kp.length > shallow.length && kp.indexOf(shallow) === 0); });
+          kept = kept.filter(function(kk){
+            var kps = profile.paths[kk.name] || []; var ksh=null;
+            kps.forEach(function(pp){ if(ksh===null||pp.length<ksh.length) ksh=pp; });
+            return !(ksh && ksh.length > shallow.length && ksh.indexOf(shallow) === 0);
+          });
+          kept.push(s); keptPaths.push(shallow);
+        }
+      });
+      shares = kept;
+    }
+    return shares.slice(0, topK||4);
+  }
+  function bloodChips(shares){
+    if(!shares.length) return '';
+    return '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">'+
+      shares.map(function(s){
+        return '<span style="font-size:10px;padding:2px 8px;border-radius:20px;'+
+          'background:#f0ebe0;color:#6b5d44;border:1px solid #dcd0b8;">'+
+          esc(s.name)+' <span style="color:#a08c5a;">'+s.share.toFixed(1)+'</span></span>';
+      }).join('')+
+    '</div>';
+  }
+
   function render(profile){
     var box = $('simBox');
     if(!box) return;
@@ -3476,7 +3563,9 @@ function runPedigreeAnalysis() {
       if(h.dam) sub.push('母'+esc(h.dam));
       if(h.year) sub.push(h.year+'年');
       if(h.prize) sub.push(fmtPrize(h.prize));
-      return '<div style="display:flex;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px dotted var(--line);">'+
+      var shares = sharedBloods(tv, h.vec[axis], 5, profile);
+      var chips = bloodChips(shares);
+      return '<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dotted var(--line);">'+
         '<span style="font-size:15px;font-weight:700;color:var(--muted);width:1.4em;flex-shrink:0;">'+(i+1)+'</span>'+
         '<div style="flex:1;min-width:0;">'+
           '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">'+
@@ -3484,6 +3573,7 @@ function runPedigreeAnalysis() {
             (winInfo?'<span style="font-size:11px;color:var(--accent);">'+winInfo+'</span>':'')+
           '</div>'+
           '<div style="font-size:11px;color:var(--muted);margin-top:1px;">'+sub.join('　')+'</div>'+
+          chips+
         '</div>'+
         '<div style="text-align:right;flex-shrink:0;">'+
           '<div style="font-size:15px;font-weight:700;font-family:\'Shippori Mincho B1\',serif;">'+(r.sim*100).toFixed(1)+'%</div>'+
@@ -3494,7 +3584,9 @@ function runPedigreeAnalysis() {
 
     box.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">'+
         esc(profile.name)+' と血の構成が近い活躍馬（'+
-        (axis==='full'?'総合':axis==='mother'?'母方':'父方')+'軸）</div>'+ rows;
+        (axis==='full'?'総合':axis==='mother'?'母方':'父方')+'軸）</div>'+
+        '<div style="font-size:10px;color:#4a4440;margin-bottom:8px;">チップ＝主だった共有血とその血量（数字が大きいほど濃く共有）</div>'+
+        rows;
   }
 
   var _lastProfile = null;
@@ -3520,6 +3612,37 @@ function runPedigreeAnalysis() {
     var el = $(id);
     if(el) el.addEventListener('change', function(){ if(_lastProfile) render(_lastProfile); });
   });
+
+  // コメント（血統メモ）に貼るための類似馬テキストを返す。DB未読なら読み込んでから返す。
+  function textTop(profile, topN){
+    topN = topN || 5;
+    function build(){
+      var axis = ($('simAxis') && $('simAxis').value) || 'full';
+      var tv = vecFromProfile(profile, axis);
+      var has = false; for(var k in tv){ if(tv[k]>0){ has=true; break; } }
+      if(!has) return '';
+      var ranked = HORSES
+        .filter(function(h){ return h.name !== profile.name; })
+        .map(function(h){ return { h:h, sim:cosine(tv, h.vec[axis]) }; })
+        .sort(function(a,b){ return b.sim - a.sim; })
+        .slice(0, topN);
+      var lines = ranked.map(function(r, i){
+        var h = r.h;
+        var shares = sharedBloods(tv, h.vec[axis], 3, profile);
+        var chip = shares.map(function(s){ return s.name+' '+s.share.toFixed(1); }).join('・');
+        var win = h.grade ? h.grade : (h.wins!=null ? h.wins+'勝' : '');
+        var pct = topPct(r.sim, axis);
+        var tail = (pct!=null ? '（上位'+(pct<=5?pct.toFixed(1):pct.toFixed(0))+'%）' : '');
+        return '　'+(i+1)+'. '+h.name+(win?'（'+win+'）':'')+'　一致度'+(r.sim*100).toFixed(1)+'%'+tail+
+               (chip?'　主な共有血：'+chip:'');
+      });
+      var axisJa = axis==='full'?'総合':axis==='mother'?'母方':'父方';
+      return '血量ベクトルで見た「血の構成が近い活躍馬」（'+axisJa+'軸）は以下のとおりです。\n'+lines.join('\n');
+    }
+    if(DB) return Promise.resolve(build());
+    return loadDB().then(build).catch(function(){ return ''; });
+  }
+  window.sim_textTop = textTop;
 
   // 外部公開：診断実行時に呼ぶ
   window.sim_show = show;
