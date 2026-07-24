@@ -3540,7 +3540,16 @@ function runPedigreeAnalysis() {
   //   profile.paths（血名→出現パス配列）を使い、浅いパスの接頭辞になっている深いパスを除く。
   // 対象馬とDB馬の共有血を、祖先-子孫の重複を除いて返す（全件・血量降順）。
   // 例）父コントレイル(50)を共有→配下のディープ/サンデーは対象馬側で子孫なので除外。
+  // 対象馬とDB馬の共有血を、重複なく返す（全件・血量降順）。
+  //
+  // 各血名の共有量は min(対象馬の総血量, 相手の総血量)。これで頭打ちされるため、
+  // 対象馬がクロス（同一血を複数本）で持っていても、相手が1本しか持たなければ
+  // 共有は1本ぶんに収まる（例：対象がサンデー3×4で2本でも、相手がサンデー1枚なら
+  // 共有はその1枚ぶんだけ）。そのうえで、対象馬側で祖先-子孫にあたる血は浅い方に
+  // 畳む（父コントレイル50を採れば配下のディープ25等は数えない）。畳み判定は
+  // side（父方 s… / 母方 d…）ごとに独立して行い、side合計は物理上限50%を超えない。
   function sharedBloodsAll(tv, hv, profile){
+    // 血名単位の共有量（min）を出す
     var shares = [];
     for(var k in tv){
       if(hv[k]){
@@ -3549,29 +3558,56 @@ function runPedigreeAnalysis() {
       }
     }
     shares.sort(function(a,b){ return b.share - a.share; });
+    if(!profile || !profile.paths) return shares;
 
-    // 祖先-子孫の重複除去（profile.paths がある時のみ）
-    if(profile && profile.paths){
-      var kept = [], keptPaths = [];
-      shares.forEach(function(s){
-        var ps = profile.paths[s.name] || [];
-        var shallow = null;
-        ps.forEach(function(pp){ if(shallow===null || pp.length < shallow.length) shallow = pp; });
-        if(shallow === null){ kept.push(s); return; }
-        var isDesc = keptPaths.some(function(kp){ return shallow.length > kp.length && shallow.indexOf(kp) === 0; });
-        if(!isDesc){
-          keptPaths = keptPaths.filter(function(kp){ return !(kp.length > shallow.length && kp.indexOf(shallow) === 0); });
-          kept = kept.filter(function(kk){
-            var kps = profile.paths[kk.name] || []; var ksh=null;
-            kps.forEach(function(pp){ if(ksh===null||pp.length<ksh.length) ksh=pp; });
-            return !(ksh && ksh.length > shallow.length && ksh.indexOf(shallow) === 0);
+    // 各血名に、対象馬側の全出現パスと最浅パス・sideを持たせる
+    shares.forEach(function(s){
+      var ps = (profile.paths[s.name] || []).slice();
+      var shallow = null;
+      ps.forEach(function(pp){ if(shallow===null || pp.length < shallow.length) shallow = pp; });
+      s.paths = ps;
+      s.path = shallow;                       // 例 'ds'（母父）, 'sss'（父父父）
+      s.side = (shallow && shallow.charAt(0)==='s') ? 'father' : 'mother';
+    });
+
+    // 浅い共有血を先に採用するため、最浅パス長→血量降順で並べる
+    shares.sort(function(a,b){
+      var la = a.path?a.path.length:99, lb = b.path?b.path.length:99;
+      return la - lb || b.share - a.share;
+    });
+
+    // 祖先-子孫の畳み込み：採用済みの共有血パスのいずれかを接頭辞に持つ出現が
+    // 【1つでも】あれば、その血は採用済みの子孫とみなして捨てる。全パスを見るのが要点。
+    // 例：サンデーは母方 ddss（ヒカルの子孫）と父方 sds を持つが、共有血ヒカル(dd)を
+    //     既に採ったので ddss がヒットして畳まれる。対象馬がクロスで別sideにも同じ血を
+    //     持っていても、相手との共有はヒカル経由の1本に集約され、二重計上が消える。
+    var kept = [];
+    shares.forEach(function(s){
+      var covered = kept.some(function(k){
+        if(!k.paths || !k.paths.length) return false;
+        return s.paths.some(function(sp){
+          return k.paths.some(function(kp){
+            return sp.length > kp.length && sp.indexOf(kp) === 0;
           });
-          kept.push(s); keptPaths.push(shallow);
-        }
+        });
       });
-      shares = kept;
-    }
-    return shares;
+      if(!covered) kept.push(s);
+    });
+
+    // side（父方/母方）ごとに合計へ物理上限50%を掛ける。相手が母/父の“個体”を
+    // 持たない（おじ・おば等）と、その子が別々に残ってside合計が50%を超えうるため。
+    var CAP = 50;
+    ['father','mother'].forEach(function(side){
+      var group = kept.filter(function(s){ return s.side===side; });
+      var sum = 0; group.forEach(function(s){ sum += s.share; });
+      if(sum > CAP && sum > 0){
+        var scale = CAP / sum;
+        group.forEach(function(s){ s.share *= scale; });
+      }
+    });
+
+    kept.sort(function(a,b){ return b.share - a.share; });
+    return kept;
   }
   function sharedBloods(tv, hv, topK, profile){
     return sharedBloodsAll(tv, hv, profile).slice(0, topK||4);
