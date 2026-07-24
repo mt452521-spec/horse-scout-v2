@@ -441,6 +441,25 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
       </div>
 
       <div class="divider"></div>
+
+      <!-- のびしろ君（バッタ様作）の予測CSVを読み込んで測尺・予測を自動反映 -->
+      <div id="nbBar" style="background:#fffdf8;border:1px solid #cdbfa6;border-radius:8px;padding:8px 11px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:11px;letter-spacing:.1em;color:#5a5248;">のびしろ君の予測CSV</span>
+          <label class="btn ghost small" style="cursor:pointer;margin:0;">
+            ファイルを選ぶ
+            <input type="file" id="nbFile" accept=".csv,text/csv" style="display:none;">
+          </label>
+          <span id="nbStat" style="font-size:11px;color:#706860;">未読込</span>
+          <button class="btn ghost small" id="nbClear" style="display:none;">解除</button>
+        </div>
+        <div style="font-size:10px;color:#706860;margin-top:5px;line-height:1.6;">
+          読み込むと、馬名が一致した馬の測尺（体重・体高・胸囲・管囲）と生年月日・測尺日が自動で入ります。
+          予測馬体重も診断結果とブログメモに反映されます。
+          <span style="color:#8a7f6a;">※予測はバッタ様作「のびしろ君」の出力です</span>
+        </div>
+      </div>
+
       <div class="measure-grid" style="grid-template-columns: 1fr 1.5fr 1.5fr;">
         <div class="field"><label>性別</label><select id="horseSex"><option value="">選択</option><option value="牡">牡</option><option value="牝">牝</option></select></div>
         <div class="field"><label>生年月日</label><input type="text" id="horseBirth" placeholder="例：2025/4/15"><div class="field-hint">年/月/日</div></div>
@@ -566,6 +585,14 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
       <div class="injury-box" id="injuryBox"></div>
     </div>
 
+    <!-- 将来馬体重予測（のびしろ君CSVが一致した時のみ表示） -->
+    <div id="nbSection" style="display:none;">
+      <div class="card-label" style="margin-top:1.25rem;">将来馬体重予測
+        <span style="font-size:9px;color:#4a4440;margin-left:8px;font-weight:400;">のびしろ君（バッタ様作）より</span>
+      </div>
+      <div id="nbBox" class="comment-box" style="padding:1rem 1.1rem;"></div>
+    </div>
+
     <!-- 総評 -->
     <div class="card-label" style="margin-top:1.25rem;">総評</div>
     <div class="comment-box" id="commentBox"></div>
@@ -604,13 +631,13 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
   </div>
 <section class="panel" id="simSection" style="display:none">
     <h2>血の構成が近い活躍馬</h2>
-    <div style="font-size:12px;color:var(--muted);margin:-6px 0 10px;">血量ベクトルのコサイン類似度で、DB内の活躍馬から近い順に表示します。</div>
+    <div style="font-size:12px;color:var(--muted);margin:-6px 0 10px;">対象馬と血を多く共有する活躍馬を、共有血量の合計が大きい順に表示します（祖先-子孫の重複は除外）。</div>
     <div id="simControls" style="display:none;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;">
       <div class="field">
         <label>比較軸</label>
         <select id="simAxis">
           <option value="full">総合（父＋母の血量）</option>
-          <option value="mother">母方のみ（牝系）</option>
+          <option value="mother">母方のみ（牝系・父の影響を除く）</option>
           <option value="father">父方のみ</option>
         </select>
       </div>
@@ -1578,10 +1605,19 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 
     // ===== ⑨ AI馬体診断 =====
     var hs = window._lastHsResult;
-    if(hs){
+    var nbTxt = (window.nb_text ? window.nb_text() : '');
+    if(hs || nbTxt){
       L.push('ここからは、当たるも八卦当たらぬも八卦のAI馬体診断です');
       L.push('私はまだ半分も信じておりませんが、興味のある方はご笑覧ください');
       L.push('');
+    }
+    // 将来馬体重予測（のびしろ君CSVが一致していれば）
+    if(nbTxt){
+      L.push('【将来馬体重予測】');
+      L.push(nbTxt);
+      L.push('');
+    }
+    if(hs){
       if(hs.overall_comment){
         L.push('【馬体診断から一言】');
         L.push(hs.overall_comment);
@@ -1963,10 +1999,17 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     var info = {};
 
     // ---- 馬名（pdf.jsだと「○エンドタイムズ24の」のように崩れる）----
-    // パターン1: 「○○の24」 パターン2: 「○○24の」(崩れ) → 両対応
-    info.name = g(/([ァ-ヴ][ァ-ヴ ー]*?)の(2\d)\b/, 1)
-             || (function(){ var m=t.match(/([ァ-ヴ][ァ-ヴ ー]*?)(2\d)の/); return m?m[1]:''; })()
-             || '';
+    // パターン1: 「○○の25」 パターン2: 「○○25の」(崩れ) → 両対応
+    // 文字クラスにはカタカナ・長音のほか、英字/ローマ数字/数字も許可する
+    // （例「エクセレンスIIの25」はカタカナのみだと手前で切れて抽出できない）
+    var NMCHR = '[\\u30A1-\\u30F4 \\u30FCA-Za-zＡ-Ｚａ-ｚ\\u2160-\\u217B0-9０-９]';
+    var reName1 = new RegExp('([\\u30A1-\\u30F4]'+NMCHR+'*?)の([2２][\\d０-９])');
+    var reName2 = new RegExp('([\\u30A1-\\u30F4]'+NMCHR+'*?)([2２][\\d０-９])の');
+    var nm1 = t.match(reName1), nm2 = nm1 ? null : t.match(reName2);
+    var nmHit = nm1 || nm2;
+    info.name     = nmHit ? nmHit[1] : '';
+    // 世代年（「の25」の25部分）。取れなければ後段で既定値を使う
+    info.nameYear = nmHit ? String(nmHit[2]).normalize('NFKC') : '';
     info.name = info.name.replace(/\s/g,'').replace(/^[○◯外\(\)（）]+/,'');
 
     // ---- 父・母（縦書き連結のhead由来。×の前後のカナ）----
@@ -2097,7 +2140,8 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
 
   function applyCatalog(info){
     $('basicGrid').style.display='';
-    setB('b_name', info.name ? (info.name+'の24') : '');
+    var gen = info.nameYear || '25';           // カタログから取れた世代年（既定25）
+    setB('b_name', info.name ? (info.name+'の'+gen) : '');
     // 父母：合成モードで取り込んだ実名があればそちら優先、無ければカナ
     setB('b_sire', name('s') || info.sireJa || '');
     setB('b_dam',  name('d') || info.damJa  || '');
@@ -2141,12 +2185,14 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
     if(info.measure) setB('b_measure', info.measure);
     else if(!$('b_measure').value.trim()) $('b_measure').value='体高---.-,胸囲---.-,管囲--.-,体重---';
     // 馬名欄（上部）も未入力なら埋める
-    if(info.name && !$('ped-horseName').value.trim()) $('ped-horseName').value = info.name+'の24';
+    if(info.name && !$('ped-horseName').value.trim()) $('ped-horseName').value = info.name+'の'+gen;
     // 読み取れた項目数をフィードバック
     var ids=['b_name','b_sire','b_dam','b_damsire','b_stable','b_base','b_sex','b_color','b_birth','b_origin','b_farm','b_total'];
     var filled=ids.filter(function(id){ return ($(id).value||'').trim(); }).length;
     if(filled<=3) toast('読み取り'+filled+'項目のみ。日本語が拾えない場合はオンライン環境で再試行を');
     else toast('カタログから基礎情報を読み取りました（'+filled+'項目）');
+    // のびしろ君CSVが読込済みなら、馬名で照合して測尺・予測を流し込む
+    if(window.nb_apply){ try{ window.nb_apply(); }catch(e){} }
   }
 
   function readCatalogPdf(file){
@@ -2327,6 +2373,7 @@ h1 em { font-style: normal; color: #c9a84c; font-weight: 500; }
       (paths[nm] = paths[nm] || []).push(p);
     }
     return { name:(($('ped-horseName')&&$('ped-horseName').value)||'').trim()||'診断中の馬',
+             fatherName: name('s') || '',
              father:father, mother:mother, paths:paths };
   };
   window.ped_buildGrid  = function(){
@@ -3392,6 +3439,9 @@ function runPedigreeAnalysis() {
   function bq(gens){ var s=0; for(var i=0;i<gens.length;i++){ s += 100/Math.pow(2, gens[i]); } return s; }
 
   // {血名:[世代…]} を {index: 血量} のベクトルに（DBは血名をindex化しているので突合する）
+  // side='nofather' は「父方の枝ごと」除外し、母方だけで比較する。父が血量の50%を占めて
+  // 類似度を支配し、同父馬とだけ数値が跳ねる問題を避け、母系＝配合の近さを見るための軸。
+  // （父個体だけ抜いても父の父以下が残り効いてしまうため、父方サイドごと落とす）
   function vecFromProfile(profile, side){
     var v = {};
     function add(dict){
@@ -3401,16 +3451,16 @@ function runPedigreeAnalysis() {
         v[idx] = (v[idx]||0) + bq(dict[nm]);
       }
     }
-    if(side==='mother') add(profile.mother);
+    if(side==='mother' || side==='nofather') add(profile.mother);
     else if(side==='father') add(profile.father);
     else { add(profile.father); add(profile.mother); }
     return v;
   }
-  // DB側の馬（index構造）からベクトル
+  // DB側の馬（index構造）からベクトル。nofatherは母方のみ（父方サイドを除外）。
   function vecFromHorse(h, side){
     var v = {};
     function add(dict){ for(var i in dict){ v[i] = (v[i]||0) + bq(dict[i]); } }
-    if(side==='mother') add(h.mother);
+    if(side==='mother' || side==='nofather') add(h.mother);
     else if(side==='father') add(h.father);
     else { add(h.father); add(h.mother); }
     return v;
@@ -3432,7 +3482,7 @@ function runPedigreeAnalysis() {
   // 較正：ランダム2頭分布での「上位x%」（HANDOFF §4-3）
   function topPct(sim, axis){
     if(!CAL) return null;
-    var t = CAL[axis] || CAL.mother;
+    var t = CAL[axis] || (axis==='nofather' ? CAL.full : null) || CAL.mother;
     if(!t) return null;
     var lo=0, hi=t.length;
     while(lo<hi){ var m=(lo+hi)>>1; if(t[m]<sim) lo=m+1; else hi=m; }
@@ -3460,7 +3510,8 @@ function runPedigreeAnalysis() {
         return o;
       });
       HORSES.forEach(function(h){
-        h.vec = { mother:vecFromHorse(h,'mother'), full:vecFromHorse(h,'full'), father:vecFromHorse(h,'father') };
+        h.vec = { mother:vecFromHorse(h,'mother'), full:vecFromHorse(h,'full'),
+                  father:vecFromHorse(h,'father'), nofather:vecFromHorse(h,'nofather') };
       });
       // DBの中身で既定軸を決める（父混在→総合、単一→母方）
       var st = db.meta.stallions || [];
@@ -3487,7 +3538,9 @@ function runPedigreeAnalysis() {
   // ★重複除去：ある共有血が別の共有血の子孫（対象馬の血統表で祖先-子孫関係）なら表示しない。
   //   例）父キタサンブラックを共有→その中のブラックタイド/サンデーサイレンス等は隠す。
   //   profile.paths（血名→出現パス配列）を使い、浅いパスの接頭辞になっている深いパスを除く。
-  function sharedBloods(tv, hv, topK, profile){
+  // 対象馬とDB馬の共有血を、祖先-子孫の重複を除いて返す（全件・血量降順）。
+  // 例）父コントレイル(50)を共有→配下のディープ/サンデーは対象馬側で子孫なので除外。
+  function sharedBloodsAll(tv, hv, profile){
     var shares = [];
     for(var k in tv){
       if(hv[k]){
@@ -3499,18 +3552,14 @@ function runPedigreeAnalysis() {
 
     // 祖先-子孫の重複除去（profile.paths がある時のみ）
     if(profile && profile.paths){
-      var kept = [];
-      var keptPaths = [];   // 既に採用した血の「最浅パス」集合
+      var kept = [], keptPaths = [];
       shares.forEach(function(s){
         var ps = profile.paths[s.name] || [];
-        // この血の最浅（最短）パス
         var shallow = null;
         ps.forEach(function(pp){ if(shallow===null || pp.length < shallow.length) shallow = pp; });
-        if(shallow === null){ kept.push(s); return; }  // パス不明なら残す
-        // 既採用のどれかの子孫（＝既採用パスが自分の接頭辞）なら除外
+        if(shallow === null){ kept.push(s); return; }
         var isDesc = keptPaths.some(function(kp){ return shallow.length > kp.length && shallow.indexOf(kp) === 0; });
         if(!isDesc){
-          // 逆に、自分が既採用の祖先だった場合は、その子孫側を後追いで消す
           keptPaths = keptPaths.filter(function(kp){ return !(kp.length > shallow.length && kp.indexOf(shallow) === 0); });
           kept = kept.filter(function(kk){
             var kps = profile.paths[kk.name] || []; var ksh=null;
@@ -3522,7 +3571,17 @@ function runPedigreeAnalysis() {
       });
       shares = kept;
     }
-    return shares.slice(0, topK||4);
+    return shares;
+  }
+  function sharedBloods(tv, hv, topK, profile){
+    return sharedBloodsAll(tv, hv, profile).slice(0, topK||4);
+  }
+  // 共有血量の合計（＝順位・メイン数値に使うスコア）。重複除去後の share を合算。
+  function sharedTotal(tv, hv, profile){
+    var all = sharedBloodsAll(tv, hv, profile);
+    var s = 0;
+    all.forEach(function(x){ s += x.share; });
+    return s;
   }
   function bloodChips(shares){
     if(!shares.length) return '';
@@ -3533,6 +3592,19 @@ function runPedigreeAnalysis() {
           esc(s.name)+' <span style="color:#a08c5a;">'+s.share.toFixed(1)+'</span></span>';
       }).join('')+
     '</div>';
+  }
+
+  function axisJa(axis){
+    return axis==='full'?'総合':axis==='mother'?'母方':'父方';
+  }
+  // 対象馬とDB馬が「同一馬」とみなせるか（名前一致、または「◯◯の25」の◯◯が母名と一致など）
+  function isSameHorse(profile, h){
+    if(!h) return false;
+    var pn = String(profile.name||'').replace(/\s/g,'');
+    var hn = String(h.name||'').replace(/\s/g,'');
+    if(pn && hn && pn===hn) return true;
+    // 「母名の25」で、対象の父と一致する現役馬（＝対象馬そのもの）を弾く
+    return false;
   }
 
   function render(profile){
@@ -3547,24 +3619,27 @@ function runPedigreeAnalysis() {
       box.innerHTML = '<div style="color:var(--muted);font-size:13px;">この軸ではDB内の血と重なりがなく、比較できませんでした。</div>';
       return;
     }
+    // ★スコア＝重複除去した共有血量の合計。順位もこの値で決める。
     var ranked = HORSES
-      .filter(function(h){ return h.name !== profile.name; })
-      .map(function(h){ return { h:h, sim:cosine(tv, h.vec[axis]) }; })
-      .sort(function(a,b){ return b.sim - a.sim; })
+      .filter(function(h){ return !isSameHorse(profile, h); })
+      .map(function(h){
+        var shares = sharedBloodsAll(tv, h.vec[axis], profile);
+        var total = 0; shares.forEach(function(x){ total += x.share; });
+        return { h:h, total:total, shares:shares };
+      })
+      .filter(function(r){ return r.total > 0; })
+      .sort(function(a,b){ return b.total - a.total; })
       .slice(0, topN);
 
     var rows = ranked.map(function(r, i){
       var h = r.h;
-      var pct = topPct(r.sim, axis);
-      var cl = classifySim(pct);
       var winInfo = h.grade ? esc(h.grade) : (h.wins!=null ? (h.wins+'勝') : '');
       var sub = [];
       if(h.stallion) sub.push('父'+esc(h.stallion));
       if(h.dam) sub.push('母'+esc(h.dam));
       if(h.year) sub.push(h.year+'年');
       if(h.prize) sub.push(fmtPrize(h.prize));
-      var shares = sharedBloods(tv, h.vec[axis], 5, profile);
-      var chips = bloodChips(shares);
+      var chips = bloodChips(r.shares.slice(0, 6));
       return '<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dotted var(--line);">'+
         '<span style="font-size:15px;font-weight:700;color:var(--muted);width:1.4em;flex-shrink:0;">'+(i+1)+'</span>'+
         '<div style="flex:1;min-width:0;">'+
@@ -3576,16 +3651,16 @@ function runPedigreeAnalysis() {
           chips+
         '</div>'+
         '<div style="text-align:right;flex-shrink:0;">'+
-          '<div style="font-size:15px;font-weight:700;font-family:\'Shippori Mincho B1\',serif;">'+(r.sim*100).toFixed(1)+'%</div>'+
-          (cl.t?'<div style="font-size:10px;color:'+cl.c+';font-weight:700;">'+cl.t+'</div>':'')+
+          '<div style="font-size:15px;font-weight:700;font-family:\'Shippori Mincho B1\',serif;">'+r.total.toFixed(1)+'%</div>'+
+          '<div style="font-size:9px;color:#8a7f6a;">共有血量</div>'+
         '</div>'+
       '</div>';
     }).join('');
 
-    box.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">'+
-        esc(profile.name)+' と血の構成が近い活躍馬（'+
-        (axis==='full'?'総合':axis==='mother'?'母方':'父方')+'軸）</div>'+
-        '<div style="font-size:10px;color:#4a4440;margin-bottom:8px;">チップ＝主だった共有血とその血量（数字が大きいほど濃く共有）</div>'+
+    box.innerHTML =
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">'+
+        esc(profile.name)+' と血を多く共有する活躍馬（'+ axisJa(axis) +'軸）</div>'+
+        '<div style="font-size:10px;color:#4a4440;margin-bottom:8px;">右の数字＝共有している血量の合計（祖先-子孫の重複は除外）。チップはその内訳。</div>'+
         rows;
   }
 
@@ -3622,22 +3697,23 @@ function runPedigreeAnalysis() {
       var has = false; for(var k in tv){ if(tv[k]>0){ has=true; break; } }
       if(!has) return '';
       var ranked = HORSES
-        .filter(function(h){ return h.name !== profile.name; })
-        .map(function(h){ return { h:h, sim:cosine(tv, h.vec[axis]) }; })
-        .sort(function(a,b){ return b.sim - a.sim; })
+        .filter(function(h){ return !isSameHorse(profile, h); })
+        .map(function(h){
+          var shares = sharedBloodsAll(tv, h.vec[axis], profile);
+          var total = 0; shares.forEach(function(x){ total += x.share; });
+          return { h:h, total:total, shares:shares };
+        })
+        .filter(function(r){ return r.total > 0; })
+        .sort(function(a,b){ return b.total - a.total; })
         .slice(0, topN);
       var lines = ranked.map(function(r, i){
         var h = r.h;
-        var shares = sharedBloods(tv, h.vec[axis], 3, profile);
-        var chip = shares.map(function(s){ return s.name+' '+s.share.toFixed(1); }).join('・');
+        var chip = r.shares.slice(0,4).map(function(s){ return s.name+' '+s.share.toFixed(1); }).join('・');
         var win = h.grade ? h.grade : (h.wins!=null ? h.wins+'勝' : '');
-        var pct = topPct(r.sim, axis);
-        var tail = (pct!=null ? '（上位'+(pct<=5?pct.toFixed(1):pct.toFixed(0))+'%）' : '');
-        return '　'+(i+1)+'. '+h.name+(win?'（'+win+'）':'')+'　一致度'+(r.sim*100).toFixed(1)+'%'+tail+
-               (chip?'　主な共有血：'+chip:'');
+        return '　'+(i+1)+'. '+h.name+(win?'（'+win+'）':'')+'　共有血量'+r.total.toFixed(1)+'%'+
+               (chip?'　内訳：'+chip:'');
       });
-      var axisJa = axis==='full'?'総合':axis==='mother'?'母方':'父方';
-      return '血量ベクトルで見た「血の構成が近い活躍馬」（'+axisJa+'軸）は以下のとおりです。\n'+lines.join('\n');
+      return '血量ベクトルで見て「血を多く共有する活躍馬」（'+axisJa(axis)+'軸）は以下のとおりです。\n'+lines.join('\n');
     }
     if(DB) return Promise.resolve(build());
     return loadDB().then(build).catch(function(){ return ''; });
@@ -3647,6 +3723,277 @@ function runPedigreeAnalysis() {
   // 外部公開：診断実行時に呼ぶ
   window.sim_show = show;
   window.sim_hide = function(){ var s=$('simSection'); if(s) s.style.display='none'; };
+})();
+</script>
+
+
+<script>
+// ===== のびしろ君CSV連携エンジン =====
+// バッタ様作「のびしろ君」(https://huggingface.co/spaces/drosshopper/horse-weight-predictor2)
+// の予測結果CSVを読み込み、馬名一致で測尺・予測をツールに自動反映する。
+// APIは叩かない（公式UIで出力したCSVを読むだけの疎結合方式）。
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var LS_KEY = 'nobishiro_csv_v1';
+  var MAP = null;      // 正規化キー -> 行オブジェクト
+  var COUNT = 0;
+
+  // ---- 馬名の正規化（表記ゆれ吸収）----
+  // NFKCで Ⅱ→II / 全角２→2 / 全角Ａ→A をまとめて解決し、
+  // 各種ダッシュを長音符に統一、末尾のローマ数字を算用数字へ寄せる。
+  var RN = { I:1, V:5, X:10 };
+  function romanToNum(s){
+    var n=0;
+    for(var i=0;i<s.length;i++){
+      var v=RN[s[i]], nx=RN[s[i+1]];
+      n += (nx && v<nx) ? -v : v;
+    }
+    return n;
+  }
+  function normName(s){
+    var t = String(s||'');
+    try { t = t.normalize('NFKC'); } catch(e){}
+    t = t.replace(/[\u2010-\u2015\u2212\u2500\uFF0D\uFF70~\uFF5E\u301C]/g,'ー');  // ダッシュ類→長音符
+    t = t.replace(/[\s\u3000\u30FB\uFF65]/g,'');                                   // 空白・中点除去
+    t = t.toUpperCase();
+    // 「の25」の直前、または末尾のローマ数字だけを算用数字に寄せる
+    t = t.replace(/(I{1,3}|IV|VI{0,3}|IX|XI{0,2})(?=の\d|$)/g, function(m){ return String(romanToNum(m)); });
+    return t;
+  }
+  window.nb_normName = normName;
+
+  // ---- CSVパース（改行・引用符対応の簡易版）----
+  function parseCSV(text){
+    var rows=[], row=[], cur='', q=false;
+    for(var i=0;i<text.length;i++){
+      var c=text[i];
+      if(q){
+        if(c==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else q=false; }
+        else cur+=c;
+      } else {
+        if(c==='"') q=true;
+        else if(c===','){ row.push(cur); cur=''; }
+        else if(c==='\n'){ row.push(cur); cur=''; rows.push(row); row=[]; }
+        else if(c==='\r'){ /* skip */ }
+        else cur+=c;
+      }
+    }
+    if(cur!=='' || row.length){ row.push(cur); rows.push(row); }
+    return rows.filter(function(r){ return r.some(function(v){ return String(v).trim()!==''; }); });
+  }
+
+  function buildMap(text){
+    var rows = parseCSV(text);
+    if(!rows.length) return null;
+    var head = rows[0].map(function(h){ return String(h).trim(); });
+    var idx = {};
+    head.forEach(function(h,i){ idx[h]=i; });
+    if(idx['馬名'] === undefined) return null;
+    var m = {}, n = 0;
+    for(var r=1; r<rows.length; r++){
+      var row = rows[r];
+      var nameRaw = String(row[idx['馬名']]||'').trim();
+      if(!nameRaw) continue;
+      var o = { name: nameRaw };
+      head.forEach(function(h,i){ o[h] = String(row[i]!=null?row[i]:'').trim(); });
+      m[normName(nameRaw)] = o;
+      n++;
+    }
+    COUNT = n;
+    return m;
+  }
+
+  // ---- 読み込み（cp932優先、失敗したらUTF-8）----
+  function loadFile(file){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var buf = fr.result, text = '';
+      try { text = new TextDecoder('shift_jis').decode(new Uint8Array(buf)); }
+      catch(e){ text = ''; }
+      // 文字化け判定（馬名列が読めているか）
+      if(!text || text.indexOf('馬名') < 0){
+        try { text = new TextDecoder('utf-8').decode(new Uint8Array(buf)); } catch(e2){}
+      }
+      var m = buildMap(text);
+      if(!m){ setStat('読み込めませんでした（馬名列が見つかりません）', true); return; }
+      MAP = m;
+      try { localStorage.setItem(LS_KEY, text); } catch(e3){}
+      setStat(COUNT+'頭を読込済み');
+      if($('nbClear')) $('nbClear').style.display='';
+      applyToCurrent(true);
+    };
+    fr.readAsArrayBuffer(file);
+  }
+  function setStat(msg, isErr){
+    var el = $('nbStat');
+    if(el){ el.textContent = msg; el.style.color = isErr ? 'var(--accent)' : '#706860'; }
+  }
+
+  // ---- 現在の馬名から検索 ----
+  function currentName(){
+    var a = ($('b_name') && $('b_name').value || '').trim();
+    if(a) return a;
+    var b = ($('ped-horseName') && $('ped-horseName').value || '').trim();
+    return b;
+  }
+  function find(nameStr){
+    if(!MAP || !nameStr) return null;
+    var k = normName(nameStr);
+    if(MAP[k]) return MAP[k];
+    // 「の25」が付いていない/余分な場合も拾う
+    var stripped = k.replace(/の\d{1,2}$/,'');
+    for(var kk in MAP){
+      if(kk.replace(/の\d{1,2}$/,'') === stripped) return MAP[kk];
+    }
+    return null;
+  }
+  window.nb_find = find;
+
+  // ---- 性別の表記ゆれを牡/牝に寄せる ----
+  function normSex(s){
+    s = String(s||'').trim();
+    if(/^(牡|牡馬|オス|おす|male|M)$/i.test(s)) return '牡';
+    if(/^(牝|牝馬|メス|めす|female|F)$/i.test(s)) return '牝';
+    return '';
+  }
+
+  // ---- 値をツールへ流し込む ----
+  var _last = null;
+  function applyToCurrent(silent){
+    var nameStr = currentName();
+    var row = find(nameStr);
+    if(!row){ _last = null; hideSection(); if(!silent) setStat(COUNT?COUNT+'頭を読込済み（この馬は未収録）':'未読込'); return null; }
+    _last = row;
+
+    function setIfEmpty(id, val){
+      var el = $(id);
+      if(el && val!=='' && val!=null && !String(el.value||'').trim()) el.value = val;
+    }
+    function setAlways(id, val){
+      var el = $(id);
+      if(el && val!=='' && val!=null) el.value = val;
+    }
+    // 測尺（空欄のときだけ埋める＝手入力を尊重）
+    setIfEmpty('horseWeight', row['測尺時馬体重']);
+    setIfEmpty('horseHeight', row['体高']);
+    setIfEmpty('horseWaist',  row['胸囲']);
+    setIfEmpty('horseLeg',    row['管囲']);
+    // 性別
+    var sx = normSex(row['性別']);
+    if(sx && $('horseSex') && !$('horseSex').value) $('horseSex').value = sx;
+    if(sx && $('b_sex') && !String($('b_sex').value||'').trim()) $('b_sex').value = sx;
+    // 生年月日・測尺日（年は馬名の世代から推定：○○の25 → 2025年生まれ）
+    var gen = (String(nameStr).match(/の(\d{2})$/)||[])[1];
+    var birthY = gen ? (2000 + parseInt(gen,10)) : null;
+    if(birthY && row['生月'] && row['生日']){
+      setIfEmpty('horseBirth', birthY+'/'+parseInt(row['生月'],10)+'/'+parseInt(row['生日'],10));
+    }
+    if(row['測尺月'] && row['測尺日']){
+      var my = birthY ? birthY+1 : (new Date()).getFullYear();
+      setIfEmpty('measureDate', my+'/'+parseInt(row['測尺月'],10)+'/'+parseInt(row['測尺日'],10));
+    }
+    // 基礎情報の馬体欄
+    if($('b_measure')){
+      var cur = String($('b_measure').value||'').trim();
+      if(!cur || /^体高-+/.test(cur)){
+        $('b_measure').value = '体高'+row['体高']+',胸囲'+row['胸囲']+',管囲'+row['管囲']+',体重'+row['測尺時馬体重'];
+      }
+    }
+    if(typeof checkReady === 'function'){ try{ checkReady(); }catch(e){} }
+    setStat(COUNT+'頭を読込済み ／ '+row.name+' に一致（予測'+row['予測馬体重']+'kg）');
+    showSection(row);
+    return row;
+  }
+  window.nb_apply = applyToCurrent;
+  window.nb_current = function(){ return _last; };
+
+  // ---- シロー氏の3歳春軸に当てた所見 ----
+  // ※閾値はシロー氏の集計（一口馬主DBの予測ツールによる3歳春想定体重ベース）
+  function shiroNote(pred, sex){
+    var p = parseFloat(pred);
+    if(!isFinite(p)) return '';
+    if(p>=480 && p<=500) return '3歳春想定で480〜500kg。シロー氏の集計で牡牝とも勝ち上がり率が最も高い帯に入ります';
+    if(p>500) return '3歳春想定で500kg超。シロー氏の集計では重い層ほど勝ち上がり率が高い傾向ですが、最頻の好帯（480〜500kg）はやや超えます';
+    if(p>=460) return '3歳春想定で460〜480kg。好帯（480〜500kg）の一歩手前です';
+    return '3歳春想定で460kg未満。シロー氏の集計では軽量層の勝ち上がり率がやや下がる帯です';
+  }
+
+  function showSection(row){
+    var sec = $('nbSection'), box = $('nbBox');
+    if(!sec || !box) return;
+    function judgeColor(j){
+      if(/極めて|非常に/.test(j)) return '#c01f2e';
+      if(/やや/.test(j)) return '#c2620a';
+      return '#0a7a6e';
+    }
+    function line(label, val, std, ratio, judge){
+      return '<div style="display:flex;align-items:baseline;gap:8px;padding:3px 0;font-size:12px;">'+
+        '<span style="width:3em;color:#5a5248;flex-shrink:0;">'+label+'</span>'+
+        '<span style="font-weight:700;">'+val+'</span>'+
+        '<span style="color:#706860;font-size:11px;">標準'+std+'／'+ratio+'%</span>'+
+        '<span style="margin-left:auto;font-weight:700;color:'+judgeColor(judge)+';">'+judge+'</span>'+
+      '</div>';
+    }
+    var gain = row['予測増加量'];
+    var note = shiroNote(row['予測馬体重'], normSex(row['性別']));
+    box.innerHTML =
+      '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px;">'+
+        '<span style="font-size:22px;font-weight:700;font-family:\'Shippori Mincho B1\',serif;">'+row['予測馬体重']+'<span style="font-size:13px;">kg</span></span>'+
+        '<span style="font-size:12px;color:#706860;">測尺時 '+row['測尺時馬体重']+'kg から '+
+          '<span style="color:#0a7a6e;font-weight:700;">+'+gain+'kg</span></span>'+
+      '</div>'+
+      line('体高', row['体高']+'cm', row['標準体高'], row['体高比率％'], row['体高診断'])+
+      line('胸囲', row['胸囲']+'cm', row['標準胸囲'], row['胸囲比率％'], row['胸囲診断'])+
+      line('管囲', row['管囲']+'cm', row['標準管囲'], row['管囲比率％'], row['管囲診断'])+
+      (note ? '<div style="margin-top:8px;padding-top:7px;border-top:1px dotted #cdbfa6;font-size:11px;color:#5a5248;line-height:1.7;">'+note+'</div>' : '')+
+      '<div style="font-size:10px;color:#8a7f6a;margin-top:6px;">予測：のびしろ君（バッタ様作）／体格の判定基準も同ツールの出力</div>';
+    sec.style.display='';
+  }
+  function hideSection(){ var s=$('nbSection'); if(s) s.style.display='none'; }
+
+  // ---- ブログメモ用テキスト ----
+  window.nb_text = function(){
+    var row = _last || applyToCurrent(true);
+    if(!row) return '';
+    var L = [];
+    L.push('予測馬体重：'+row['予測馬体重']+'kg（測尺時'+row['測尺時馬体重']+'kgから+'+row['予測増加量']+'kg）');
+    L.push('　体高：'+row['体高']+'cm（標準'+row['標準体高']+'／'+row['体高比率％']+'%）'+row['体高診断']);
+    L.push('　胸囲：'+row['胸囲']+'cm（標準'+row['標準胸囲']+'／'+row['胸囲比率％']+'%）'+row['胸囲診断']);
+    L.push('　管囲：'+row['管囲']+'cm（標準'+row['標準管囲']+'／'+row['管囲比率％']+'%）'+row['管囲診断']);
+    var note = shiroNote(row['予測馬体重'], normSex(row['性別']));
+    if(note) L.push(note+'（シロー氏の馬体データ分析より）');
+    L.push('※馬体重の予測はバッタ様作「のびしろ君」を利用しています');
+    return L.join('\n');
+  };
+
+  // ---- 初期化 ----
+  function init(){
+    // 保存済みCSVがあれば復元
+    try {
+      var saved = localStorage.getItem(LS_KEY);
+      if(saved){
+        var m = buildMap(saved);
+        if(m){ MAP = m; setStat(COUNT+'頭を読込済み'); if($('nbClear')) $('nbClear').style.display=''; }
+      }
+    } catch(e){}
+
+    var f = $('nbFile');
+    if(f) f.addEventListener('change', function(){ if(this.files && this.files[0]) loadFile(this.files[0]); });
+    var c = $('nbClear');
+    if(c) c.addEventListener('click', function(){
+      MAP=null; COUNT=0; _last=null;
+      try{ localStorage.removeItem(LS_KEY); }catch(e){}
+      setStat('未読込'); hideSection(); this.style.display='none';
+    });
+    // 馬名が変わったら再照合
+    ['b_name','ped-horseName'].forEach(function(id){
+      var el = $(id);
+      if(el) el.addEventListener('change', function(){ applyToCurrent(); });
+    });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
 </script>
 
